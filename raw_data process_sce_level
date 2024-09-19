@@ -209,7 +209,6 @@ length(selected_mito)
 #selected_hb <- WhichCells(ICC.filt, expression = percent_hb < 0.1)
 #length(selected_hb)
 
-#31302
 ICC.filt <- subset(ICC.filt, cells = selected_mito)
 #ICC.filt <- subset(ICC.filt, cells = selected_ribo)
 #ICC.filt <- subset(ICC.filt, cells = selected_hb)
@@ -554,7 +553,7 @@ fsce.markers <- FindAllMarkers(object = fsce, only.pos = TRUE, min.pct = 0.25,
                                thresh.use = 0.25)
 write.csv(fsce.markers,"Sig.markers.csv")
 
-#其他免疫细胞投影一下#
+#other cell subtypes projection#
 setwd("D:\\leadtest\\immune\\myeloid")
 load("msce_marker.Rdata")
 table(msce$celltype)
@@ -562,11 +561,10 @@ table(msce$celltype)
 sce$celltypedb[match(colnames(msce),colnames(sce))]<-msce$celltype%>%as.character()
 table(sce$celltypedb)
 
-#巨噬细胞##
+#mac##
 setwd("D:\\leadtest\\immune\\myeloid\\macro2")
 load("masce_marker.Rdata")
 table(masce$celltype)
-#把macro映射到大队列中去#
 sce$celltypedb[match(colnames(masce),colnames(sce))]<-masce$celltype%>%as.character()
 table(sce$celltypedb)
 
@@ -574,47 +572,42 @@ table(sce$celltypedb)
 setwd("D:\\leadtest\\immune\\myeloid\\DC")
 load("dcsce_marker.Rdata")
 table(dcsce$celltype)
-#把dc映射到大队列中去#
 sce$celltypedb[match(colnames(dcsce),colnames(sce))]<-dcsce$celltype%>%as.character()
 table(sce$celltypedb)
 #neu#
 setwd("D:\\leadtest\\immune\\myeloid\\neu")
 load("neusce_marker.Rdata")
 table(neusce$celltype)
-#把dc映射到大队列中去#
 sce$celltypedb[match(colnames(neusce),colnames(sce))]<-neusce$celltype%>%as.character()
 table(sce$celltypedb)
 
-#单核细胞##
+#mono##
 setwd("D:\\leadtest\\immune\\myeloid\\mono")
 load("mosce_marker.Rdata")
 table(mosce$celltype)
-#把macro映射到大队列中去#
 sce$celltypedb[match(colnames(mosce),colnames(sce))]<-mosce$celltype%>%as.character()
 table(sce$celltypedb)
 
-#T细胞#
+#T/nk#
 setwd("D:\\leadtest\\immune\\tnk")
 load("tksce_marker.Rdata")
 table(tksce$celltype)
-#把tnk映射到大队列中去#
 sce$celltypedb[match(colnames(tksce),colnames(sce))]<-tksce$celltype%>%as.character()
 table(sce$celltypedb)
 
-#B细胞#
+#B#
 setwd("D:\\leadtest\\immune\\B")
 load("bsce_marker.Rdata")
 table(bsce$celltype)
-#把b映射到大队列中去#
 sce$celltypedb[match(colnames(bsce),colnames(sce))]<-bsce$celltype%>%as.character()
 table(sce$celltypedb)
 table(sce$celltypedb,sce$celltype)
 
-#Fibro细胞#
+#Fibro#
 setwd("D:\\leadtest\\fibro_all")
 load("fsce_all.marker.Rdata")
 table(fsce$celltype)
-#把b映射到大队列中去#
+
 sce$celltypedb[match(colnames(fsce),colnames(sce))]<-fsce$celltype%>%as.character()
 table(sce$celltypedb)
 table(sce$celltypedb,sce$celltype)
@@ -627,19 +620,11 @@ table(sce$celltype)
 table(sce$celltypedb)
 table(sce$celltypedb,sce$celltype)
 
-#SIRPA-CD47互作的处理#####
-#巨噬细胞统一定义成巨噬细胞
-table(sce$celltypedb)
-sce$celltypedb[which(sce$celltypedb%in%c("Mac_c0_JUN","Mac_c1_CXCL10","Mac_c2_APOC1","Mac_c3_IL1B","Mac_c4_FOLR2","Mac_c5_MKI67","Mac_c6_SPP1"))] <- "Macrophage"
-table(sce$celltypedb)
-table(sce$celltypedb,sce$type)
-
-
 
 
 setwd("D:\\leadtest")
 # #cell####
-#cell_chat preparation####
+#cell_chat file preparation####
 setwd("D:\\leadtest\\cc")
 table(sce$type,sce$patient_id)
 table(sce$celltypedb,sce$celltype)
@@ -659,14 +644,6 @@ meta_data <- cbind(rownames(Tsce@meta.data), Tsce@meta.data[,'celltypedb', drop=
 meta_data <- as.matrix(meta_data)
 # meta_dat[is.na(meta_data)] = "Unkown" 
 write.table(meta_data, 'Tsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
-#N_Group
-Nsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("N"))])
-table(Nsce$type,Nsce$patient_id)
-write.table(as.matrix(Nsce@assays$RNA@data), 'Nsce_cellphonedb_count.txt', sep='\t', quote=F)
-meta_data <- cbind(rownames(Nsce@meta.data), Nsce@meta.data[,'celltypedb', drop=F])  
-meta_data <- as.matrix(meta_data)
-# meta_dat[is.na(meta_data)] = "Unkown" #  细胞类型中不能有NA
-write.table(meta_data, 'Nsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
 
 #所有组
 write.table(as.matrix(sce@assays$RNA@data), 'sce_cellphonedb_count.txt', sep='\t', quote=F)
