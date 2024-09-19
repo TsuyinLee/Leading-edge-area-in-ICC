@@ -1,0 +1,659 @@
+setwd("D:\\leadtest")
+library(Seurat)
+library(ggplot2) 
+library(stringr)
+####read all raw 10x-Genomic data
+#add sample names and positional info
+P01_J <- Read10X(data.dir = "D:\\leadtest\\brxP01\\filtered_feature_bc_matrix") 
+P02_J <- Read10X(data.dir = "D:\\leadtest\\wlP02\\filtered_feature_bc_matrix") 
+P03_J <- Read10X(data.dir = ".\\dxP03\\LC_4443181_J_filtered_feature_bc_matrix") 
+P03_T <- Read10X(data.dir = ".\\dxP03\\LC_4443181_T_filtered_feature_bc_matrix") 
+P03_N <- Read10X(data.dir = ".\\dxP03\\LC_4443181_N_filtered_feature_bc_matrix") 
+P04_J <- Read10X(data.dir = ".\\zlqP04\\LC_4442779_J_filtered_feature_bc_matrix") 
+P04_T <- Read10X(data.dir = ".\\zlqP04\\LC_4442779_T_filtered_feature_bc_matrix") 
+P04_N <- Read10X(data.dir = ".\\zlqP04\\LC_4442779_N_filtered_feature_bc_matrix") 
+P05_J <- Read10X(data.dir = ".\\lhlP05\\LC_4449658_J_filtered_feature_bc_matrix") 
+P05_T <- Read10X(data.dir = ".\\lhlP05\\LC_4449658_T_filtered_feature_bc_matrix") 
+P05_N <- Read10X(data.dir = ".\\lhlP05\\LC_4449658_N_filtered_feature_bc_matrix") 
+P06_J <- Read10X(data.dir = ".\\yzqP06\\LC_4453874_J_out_filtered_feature_bc_matrix") 
+P06_T <- Read10X(data.dir = ".\\yzqP06\\LC_4453874_T_out_filtered_feature_bc_matrix") 
+P06_N <- Read10X(data.dir = ".\\yzqP06\\LC_4453874_N_out_filtered_feature_bc_matrix") 
+
+P01_J@Dimnames[[2]] <- paste0("P01_J-",P01_J@Dimnames[[2]])
+P02_J@Dimnames[[2]] <- paste0("P02_J-",P02_J@Dimnames[[2]])
+P03_J@Dimnames[[2]] <- paste0("P03_J-",P03_J@Dimnames[[2]])
+P03_T@Dimnames[[2]] <- paste0("P03_T-",P03_T@Dimnames[[2]])
+P03_N@Dimnames[[2]] <- paste0("P03_N-",P03_N@Dimnames[[2]])
+P04_J@Dimnames[[2]] <- paste0("P04_J-",P04_J@Dimnames[[2]])
+P04_T@Dimnames[[2]] <- paste0("P04_T-",P04_T@Dimnames[[2]])
+P04_N@Dimnames[[2]] <- paste0("P04_N-",P04_N@Dimnames[[2]])
+P05_J@Dimnames[[2]] <- paste0("P05_J-",P05_J@Dimnames[[2]])
+P05_T@Dimnames[[2]] <- paste0("P05_T-",P05_T@Dimnames[[2]])
+P05_N@Dimnames[[2]] <- paste0("P05_N-",P05_N@Dimnames[[2]])
+
+P06_J@Dimnames[[2]] <- paste0("P06_J-",P06_J@Dimnames[[2]])
+P06_T@Dimnames[[2]] <- paste0("P06_T-",P06_T@Dimnames[[2]])
+P06_N@Dimnames[[2]] <- paste0("P06_N-",P06_N@Dimnames[[2]])
+
+P01_Jsce <- CreateSeuratObject(counts = P01_J, project = "P01_J")
+P02_Jsce <- CreateSeuratObject(counts = P02_J, project = "P02_J")
+P03_Jsce <- CreateSeuratObject(counts = P03_J, project = "P03_J")
+P03_Tsce <- CreateSeuratObject(counts = P03_T, project = "P03_T")
+P03_Nsce <- CreateSeuratObject(counts = P03_N, project = "P03_N")
+P04_Jsce <- CreateSeuratObject(counts = P04_J, project = "P04_J")
+P04_Tsce <- CreateSeuratObject(counts = P04_T, project = "P04_T")
+P04_Nsce <- CreateSeuratObject(counts = P04_N, project = "P04_N")
+P05_Jsce <- CreateSeuratObject(counts = P05_J, project = "P05_J")
+P05_Tsce <- CreateSeuratObject(counts = P05_T, project = "P05_T")
+P05_Nsce <- CreateSeuratObject(counts = P05_N, project = "P05_N")
+P06_Jsce <- CreateSeuratObject(counts = P06_J, project = "P06_J")
+P06_Tsce <- CreateSeuratObject(counts = P06_T, project = "P06_T")
+P06_Nsce <- CreateSeuratObject(counts = P06_N, project = "P06_N")
+
+
+
+P01_Jsce@meta.data$patient_id <- "P01_J"
+P02_Jsce@meta.data$patient_id <- "P02_J"
+P03_Jsce@meta.data$patient_id <- "P03_J"
+P03_Tsce@meta.data$patient_id <- "P03_T"
+P03_Nsce@meta.data$patient_id <- "P03_N"
+P04_Jsce@meta.data$patient_id <- "P04_J"
+P04_Tsce@meta.data$patient_id <- "P04_T"
+P04_Nsce@meta.data$patient_id <- "P04_N"
+P05_Jsce@meta.data$patient_id <- "P05_J"
+P05_Tsce@meta.data$patient_id <- "P05_T"
+P05_Nsce@meta.data$patient_id <- "P05_N"
+P06_Jsce@meta.data$patient_id <- "P06_J"
+P06_Tsce@meta.data$patient_id <- "P06_T"
+P06_Nsce@meta.data$patient_id <- "P06_N"
+
+P07_J <- Read10X(data.dir = ".\\GYLP07\\4458602_J\\filtered_feature_bc_matrix") 
+P07_T <- Read10X(data.dir = ".\\GYLP07\\4458602_T\\filtered_feature_bc_matrix") 
+P07_N <- Read10X(data.dir = ".\\GYLP07\\4458602_N\\filtered_feature_bc_matrix") 
+P07_J@Dimnames[[2]] <- paste0("P07_J-",P07_J@Dimnames[[2]])
+P07_T@Dimnames[[2]] <- paste0("P07_T-",P07_T@Dimnames[[2]])
+P07_N@Dimnames[[2]] <- paste0("P07_N-",P07_N@Dimnames[[2]])
+P07_Jsce <- CreateSeuratObject(counts = P07_J, project = "P07_J")
+P07_Tsce <- CreateSeuratObject(counts = P07_T, project = "P07_T")
+P07_Nsce <- CreateSeuratObject(counts = P07_N, project = "P07_N")
+P07_Jsce@meta.data$patient_id <- "P07_J"
+P07_Tsce@meta.data$patient_id <- "P07_T"
+P07_Nsce@meta.data$patient_id <- "P07_N"
+
+P08_J <- Read10X(data.dir = ".\\cwP08\\LC_4459299J_out\\filtered_feature_bc_matrix") 
+P08_T <- Read10X(data.dir = ".\\cwP08\\LC_4459299T_out\\filtered_feature_bc_matrix") 
+P08_N <- Read10X(data.dir = ".\\cwP08\\LC_4459299N_out\\filtered_feature_bc_matrix") 
+P08_J@Dimnames[[2]] <- paste0("P08_J-",P08_J@Dimnames[[2]])
+P08_T@Dimnames[[2]] <- paste0("P08_T-",P08_T@Dimnames[[2]])
+P08_N@Dimnames[[2]] <- paste0("P08_N-",P08_N@Dimnames[[2]])
+P08_Jsce <- CreateSeuratObject(counts = P08_J, project = "P08_J")
+P08_Tsce <- CreateSeuratObject(counts = P08_T, project = "P08_T")
+P08_Nsce <- CreateSeuratObject(counts = P08_N, project = "P08_N")
+P08_Jsce@meta.data$patient_id <- "P08_J"
+P08_Tsce@meta.data$patient_id <- "P08_T"
+P08_Nsce@meta.data$patient_id <- "P08_N"
+
+P09_J <- Read10X(data.dir = "D:\\leadtest\\hqgP09\\LC_4473993_J") 
+P09_T <- Read10X(data.dir = "D:\\leadtest\\hqgP09\\LC_4473993_T") 
+P09_N <- Read10X(data.dir = "D:\\leadtest\\hqgP09\\LC_4473993_N") 
+P09_J@Dimnames[[2]] <- paste0("P09_J-",P09_J@Dimnames[[2]])
+P09_T@Dimnames[[2]] <- paste0("P09_T-",P09_T@Dimnames[[2]])
+P09_N@Dimnames[[2]] <- paste0("P09_N-",P09_N@Dimnames[[2]])
+P09_Jsce <- CreateSeuratObject(counts = P09_J, project = "P09_J")
+P09_Tsce <- CreateSeuratObject(counts = P09_T, project = "P09_T")
+P09_Nsce <- CreateSeuratObject(counts = P09_N, project = "P09_N")
+P09_Jsce@meta.data$patient_id <- "P09_J"
+P09_Tsce@meta.data$patient_id <- "P09_T"
+P09_Nsce@meta.data$patient_id <- "P09_N"
+P10_J <- Read10X(data.dir = "D:\\leadtest\\zyhP10\\4477870_ZYH_J_out") 
+P10_T <- Read10X(data.dir = "D:\\leadtest\\zyhP10\\4477870_ZYH_T_out") 
+P10_N <- Read10X(data.dir = "D:\\leadtest\\zyhP10\\4477870_ZYH_N_out") 
+P10_J@Dimnames[[2]] <- paste0("P10_J-",P10_J@Dimnames[[2]])
+P10_T@Dimnames[[2]] <- paste0("P10_T-",P10_T@Dimnames[[2]])
+P10_N@Dimnames[[2]] <- paste0("P10_N-",P10_N@Dimnames[[2]])
+P10_Jsce <- CreateSeuratObject(counts = P10_J, project = "P10_J")
+P10_Tsce <- CreateSeuratObject(counts = P10_T, project = "P10_T")
+P10_Nsce <- CreateSeuratObject(counts = P10_N, project = "P10_N")
+P10_Jsce@meta.data$patient_id <- "P10_J"
+P10_Tsce@meta.data$patient_id <- "P10_T"
+P10_Nsce@meta.data$patient_id <- "P10_N"
+P11_J <- Read10X(data.dir = "D:\\leadtest\\shyP11\\LC_4485703_J\\filtered_feature_bc_matrix") 
+P11_T <- Read10X(data.dir = "D:\\leadtest\\shyP11\\LC_4485703_T\\filtered_feature_bc_matrix") 
+P11_N <- Read10X(data.dir = "D:\\leadtest\\shyP11\\LC_4485703_N\\filtered_feature_bc_matrix") 
+P11_J@Dimnames[[2]] <- paste0("P11_J-",P11_J@Dimnames[[2]])
+P11_T@Dimnames[[2]] <- paste0("P11_T-",P11_T@Dimnames[[2]])
+P11_N@Dimnames[[2]] <- paste0("P11_N-",P11_N@Dimnames[[2]])
+P11_Jsce <- CreateSeuratObject(counts = P11_J, project = "P11_J")
+P11_Tsce <- CreateSeuratObject(counts = P11_T, project = "P11_T")
+P11_Nsce <- CreateSeuratObject(counts = P11_N, project = "P11_N")
+P11_Jsce@meta.data$patient_id <- "P11_J"
+P11_Tsce@meta.data$patient_id <- "P11_T"
+P11_Nsce@meta.data$patient_id <- "P11_N"
+#merge all raw data into a large seurat file
+ICC <- merge(P01_Jsce,
+             y = c(P02_Jsce,
+                   P03_Jsce,P03_Tsce,P03_Nsce,
+                   P04_Jsce,P04_Tsce,P04_Nsce,
+                   P05_Jsce,P05_Tsce,P05_Nsce,
+                   P06_Jsce,P06_Tsce,P06_Nsce,
+                   P07_Jsce,P07_Tsce,P07_Nsce,
+                   P08_Jsce,P08_Tsce,P08_Nsce,
+                   P09_Jsce,P09_Tsce,P09_Nsce,
+                   P10_Jsce,P10_Tsce,P10_Nsce,
+                   P11_Jsce,P11_Tsce,P11_Nsce
+                   ), project = "ICC"
+             )
+#check patient_id
+table(ICC@meta.data$patient_id)
+
+#add positional info to meta.data
+ICC@meta.data$type <-str_split_fixed(ICC$patient_id,"_",2)[,2]
+table(ICC$type)
+#add patient info to meta.data
+ICC@meta.data$patient <-str_split_fixed(ICC$patient_id,"_",2)[,1]
+table(ICC$patient)
+#rank the positional info
+ICC$type <- factor(ICC$type,c("N","J","T"))
+table(ICC$type)
+#save all raw data
+save(ICC,file ="ICC11_case.RData")
+
+rm(list=ls());gc()
+load("ICC11_case.RData")
+#Due to the inability to ascertain the pathological information for P04 and P09, these samples are excluded.
+ICC <- subset(ICC, cells = colnames(ICC)[which(!ICC$patient %in% c("P04","P09"))])
+table(ICC$patient)
+names(ICC@meta.data)
+#quality control
+#mito
+mito_genes=rownames(ICC)[grep("^MT-", rownames(ICC))] 
+mito_genes 
+ICC=PercentageFeatureSet(ICC, "^MT-", col.name = "percent_mito")
+fivenum(ICC@meta.data$percent_mito)
+#ribo
+ribo_genes=rownames(ICC)[grep("^Rp[sl]", rownames(ICC),ignore.case = T)]
+ribo_genes
+ICC=PercentageFeatureSet(ICC, "^RP[SL]", col.name = "percent_ribo")
+fivenum(ICC@meta.data$percent_ribo)
+#Hb
+rownames(ICC)[grep("^Hb[^(p)]", rownames(ICC),ignore.case = T)]
+ICC=PercentageFeatureSet(ICC, "^HB[^(P)]", col.name = "percent_hb")
+fivenum(ICC@meta.data$percent_hb)
+#
+feats <- c("nFeature_RNA", "nCount_RNA")
+table(ICC$orig.ident)
+VlnPlot(ICC, group.by = "patient_id", features = feats, pt.size = 0, ncol = 1) + 
+  NoLegend()
+ggsave("nFea_nCount_before_QC.pdf",height = 6,width = 12)
+feats <- c("percent_mito", "percent_ribo", "percent_hb")#感觉线粒体基因比例有点高
+VlnPlot(ICC, group.by = "patient_id", features = feats, pt.size = 0.01, ncol = 1, same.y.lims=T) + 
+  scale_y_continuous(breaks=seq(0, 100, 5)) +
+  NoLegend()
+ggsave("mito_ribo_hb_beforeQC.pdf",height = 9,width = 12)
+FeatureScatter(ICC, "nCount_RNA", "nFeature_RNA", group.by = "orig.ident", pt.size = 0.5)
+ggsave("nFeature_nCount_scatter_beforeQC.pdf",height = 6,width = 6)
+
+#Key filter info
+selected_c <- WhichCells(ICC, expression = nFeature_RNA > 500)
+selected_f <- rownames(ICC)[Matrix::rowSums(ICC@assays$RNA@counts > 0 ) > 20]
+ICC.filt <- subset(ICC, features = selected_f, cells = selected_c)
+
+#
+dim(ICC) #before
+dim(ICC.filt) #after
+#
+selected_mito <- WhichCells(ICC.filt, expression = percent_mito < 25)
+length(selected_mito)
+#selected_ribo <- WhichCells(ICC.filt, expression = percent_ribo > 3)#我的数据里核糖体的比例也有点高
+#length(selected_ribo)
+#selected_hb <- WhichCells(ICC.filt, expression = percent_hb < 0.1)
+#length(selected_hb)
+
+ICC.filt <- subset(ICC.filt, cells = selected_mito)
+#ICC.filt <- subset(ICC.filt, cells = selected_ribo)
+#ICC.filt <- subset(ICC.filt, cells = selected_hb)
+dim(ICC) #before
+dim(ICC.filt)#after
+#check how many cell left in each sample
+table(ICC.filt$patient_id) 
+
+#
+feats <- c("nFeature_RNA", "nCount_RNA")
+VlnPlot(ICC.filt, group.by = "patient_id", features = feats, pt.size = 0.1, ncol = 1) + 
+  NoLegend()
+ggsave("nFeat_nCount_afterQC.pdf",height = 6,width = 12)
+
+#
+feats <- c("percent_mito", "percent_ribo", "percent_hb")
+VlnPlot(ICC.filt, group.by = "patient_id", features = feats, pt.size = 0.1, ncol = 1) + 
+  NoLegend()
+ggsave("mito_ribo_hb_afterQC.pdf",height = 9,width = 12)
+#
+save(ICC.filt, file = "ICC.filt_9_ICCcase.RData")
+
+#
+rm(list=ls());gc()
+load("ICC.filt_9_ICCcase.RData")
+#scale data
+sce=ICC.filt 
+#rank positional info####
+sce$type <- factor(sce$type,c("N","J","T"))
+rm(ICC.filt)
+
+#standard protocal
+sce
+sce <- NormalizeData(sce,normalization.method = "LogNormalize") 
+sce <- FindVariableFeatures(sce)
+sce <- FindVariableFeatures(object = sce, selection.method = "vst", nfeatures = 2000)
+sce <- ScaleData(sce)
+sce <- RunPCA(sce
+              #, features = rownames(sce)
+              )
+
+sce <- RunTSNE(object = sce,dims = 1:20)
+
+DimPlot(sce, reduction = "tsne", label = T)
+names(sce@reductions)
+sce <- RunUMAP(sce,dims =1:20, reduction = "pca")
+DimPlot(sce,reduction = "umap",group.by = "patient_id",raster=FALSE) #we can find batch effect here
+
+
+#use CCA to remove batch effect 
+DefaultAssay(sce) <- "RNA"
+sce = FindVariableFeatures(sce,nfeatures = 500)
+sce = ScaleData(sce
+                #vars.to.regress = c("nFeature_RNA", "percent_mito")
+)
+sce = RunPCA(sce, npcs = 50)
+sce = RunUMAP(sce, dims = 1:50)
+DimPlot(sce,reduction = "umap",group.by = "patient_id") 
+
+table(sce$patient_id)
+sce.all=sce
+sce.all
+
+sce.all.list <- SplitObject(sce.all, split.by = "patient_id")
+sce.all.list
+for (i in 1:length(sce.all.list)) {
+  print(i)
+  sce.all.list[[i]] <- NormalizeData(sce.all.list[[i]], verbose = FALSE)
+  sce.all.list[[i]] <- FindVariableFeatures(sce.all.list[[i]], selection.method = "vst", 
+                                            nfeatures = 500, verbose = FALSE)
+}
+#features <- SelectIntegrationFeatures(object.list = sce.all.list,nfeatures = 500)
+
+alldata.anchors <- FindIntegrationAnchors(object.list = sce.all.list, dims = 1:30,
+                                          anchor.features = 500,
+                                          reduction = "cca")
+# the alldata.ahchors is to large,we run the Integratedata in linux platform  
+save(alldata.anchors,file="anchors.Rdata")
+library(Seurat)
+library(ggplot2) 
+library(stringr)
+load("anchors.Rdata")
+sce.all.int <- IntegrateData(anchorset = alldata.anchors, dims = 1:30, new.assay.name = "CCA")
+save(sce.all.int,file="sce.all.int.Rdata")
+###
+#reload the linux_CCA result
+load("sce.all.int.Rdata")
+names(sce.all.int@assays)
+#[1] "RNA" "CCA"
+sce.all.int@active.assay
+#[1] "CCA"
+sce.all.int=ScaleData(sce.all.int)
+sce.all.int=RunPCA(sce.all.int, npcs = 50)
+sce.all.int=RunTSNE(sce.all.int, dims = 1:30)
+sce.all.int=RunUMAP(sce.all.int, dims = 1:30)
+names(sce.all.int@reductions)
+names(sce.all@reductions)
+colnames(sce.all@meta.data) 
+library(cowplot)
+#to compare the results of the batch-remove move
+p1.compare=plot_grid(ncol = 2,
+                     DimPlot(sce.all, reduction = "pca", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("PCA raw_data")+theme(aspect.ratio = 1),
+                     #DimPlot(sce.all, reduction = "tsne", group.by = "patient_id")+NoAxes()+ggtitle("tSNE raw_data")+theme(aspect.ratio = 1),
+                     DimPlot(sce.all, reduction = "umap", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("UMAP raw_data")+theme(aspect.ratio = 1),
+                     
+                     DimPlot(sce.all.int, reduction = "pca", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("PCA integrated")+theme(aspect.ratio = 1),
+                     #DimPlot(sce.all.int, reduction = "tsne", group.by = "patient_id")+NoAxes()+ggtitle("tSNE integrated")+theme(aspect.ratio = 1),
+                     DimPlot(sce.all.int, reduction = "umap", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("UMAP integrated")+theme(aspect.ratio = 1)
+)
+p1.compare
+ggsave(plot=p1.compare,filename="Before&After_int.pdf",width = 18,height = 12)
+
+#clustering
+sce.all.int
+sce.all
+sce=sce.all.int
+sce@active.assay
+sce=FindNeighbors(sce, dims = 1:20
+                  #k.param = 60, 
+                  #prune.SNN = 1/15
+)
+#
+for (res in c(0.01, 0.05, 0.1, 0.2, 0.3, 0.5,0.8,1,1.5,2,3,4)) {
+  sce=FindClusters(sce, graph.name = "CCA_snn", resolution = res, algorithm = 1)
+}
+apply(sce@meta.data[,grep("CCA_snn_res",colnames(sce@meta.data))],2,table)
+
+p1_dim=plot_grid(ncol = 3, 
+                 DimPlot(sce, reduction = "umap",group.by = "CCA_snn_res.0.01") + ggtitle("louvain_0.01")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.0.05") + ggtitle("louvain_0.05")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.0.1") + ggtitle("louvain_0.1")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.0.2") + ggtitle("louvain_0.2")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.0.3") + ggtitle("louvain_0.3")+theme(aspect.ratio = 1)
+)
+ggsave(plot=p1_dim, filename="Dimplot_diff_resolution_low.pdf",width = 18,height = 12)
+p1_dim=plot_grid(ncol = 3, 
+                 DimPlot(sce, reduction = "umap",group.by = "CCA_snn_res.0.5") + ggtitle("louvain_0.5")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.0.8") + ggtitle("louvain_0.8")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.1") + ggtitle("louvain_1")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.1.5") + ggtitle("louvain_1.5")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.2") + ggtitle("louvain_2")+theme(aspect.ratio = 1), 
+                 DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.3") + ggtitle("louvain_3")+theme(aspect.ratio = 1)
+)
+
+ggsave(plot=p1_dim, filename="Dimplot_diff_resolution_high.pdf",width = 18,height = 12)
+library(clustree)
+#tree
+tree=clustree(sce@meta.data, prefix = "CCA_snn_res.")
+tree
+ggsave(plot=tree, filename="Tree_diff_resolution.pdf",width = 12,height = 12)
+
+#select res.1 for further processing
+sel.clust = "CCA_snn_res.1"
+sce <- SetIdent(sce, value = sel.clust)
+sce@active.ident <- factor(sce@active.ident,levels = c(0:(length(table(sce@active.ident))-1)))
+table(sce@active.ident) 
+#to calculate the DEGs of each cluster for cell identification
+sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.25, 
+                              thresh.use = 0.25)
+write.csv(sce.markers,"sce.markers.csv")
+library(dplyr) 
+top5 <- sce.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
+DoHeatmap(sce,top5$gene,size=3)
+genes_to_check =top5$gene
+ggsave(filename=paste0(sel.clust,'_sce.markers_heatmap.pdf'),width =18,height = 12)
+
+#cell identification part
+#add cell_info to meta.data
+celltype=data.frame(ClusterID=0:(length(table(Idents(sce)))-1),celltype=0:(length(table(Idents(sce)))-1)) 
+celltype[celltype$ClusterID %in% c(16,
+                                   22,
+                                   23,
+                                   32                                   
+),2]='B_cell'
+celltype[celltype$ClusterID %in% c(6,
+                                   13,
+                                   19,
+                                   26                                   
+),2]='Malignancy_and_epi'
+celltype[celltype$ClusterID %in% c(12,
+                                   18,
+                                   20                                   
+),2]='Endothelial'
+celltype[celltype$ClusterID %in% c(14,
+                                   15,
+                                   33                                   
+),2]='Fibroblast'
+# celltype[celltype$ClusterID %in% c(15
+# 
+# ),2]='Mast_cell'
+celltype[celltype$ClusterID %in% c(5,
+                                   7,
+                                   8,
+                                   10,
+                                   11,
+                                   25,
+                                   27,
+                                   28,
+                                   29                                   
+),2]='Myeloid_cell' 
+celltype[celltype$ClusterID %in% c(0,
+                                   1,
+                                   2,
+                                   3,
+                                   4,
+                                   9,
+                                   17,
+                                   21,
+                                   24,
+                                   30,
+                                   31,
+                                   34                                   
+),2]='T/NK_cell'
+# celltype[celltype$ClusterID %in% c(21
+#                                    
+# ),2]='Unknown'
+head(celltype)
+celltype
+table(celltype$celltype)
+sce@meta.data$celltype = "NA"
+for(i in 1:nrow(celltype)){
+  sce@meta.data[which(sce@active.ident == celltype$ClusterID[i]),'celltype'] <- celltype$celltype[i]}
+table(sce@meta.data$celltype)
+th=theme(axis.text.x = element_text(angle = 45, 
+                                    vjust = 0.5, hjust=0.5)) 
+genes_to_check = c("BANK1", "CD79B", 'CD79A','MS4A1',#B cell
+                   'CDH5','CLDN5','VWF',"FCN3",#Endothelial
+                   'COL1A1','ACTA2',"COL1A2","COL3A1",#fibroblast
+                   'KRT19','KRT7','EPCAM',"ALB", #Malignancy and epi
+                   #"TPSAB1","TPSB2","MS4A2","CPA3",  #MAST 
+                   "HLA-DPB1","MS4A6A","LYZ","FTL",# myeloid CST3
+                   'CD2', 'CD3D', 'CD3E',"CD69" #T cells
+)
+#show markers in each subsets
+th=theme(axis.text.x = element_text(angle = 90)) 
+DotPlot(sce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("P1.pdf",width = 8.5,height =3)
+table(sce$celltype)
+#sce$celltype_CCA_0.3 <- sce$celltype
+#
+
+DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1)
+ggsave("P3.pdf",height = 6,width = 7.6)
+DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,
+        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)
+ggsave("P2.pdf",height = 6,width = 7.6)
+
+DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,split.by = "type",
+        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)
+ggsave("P2-2.pdf",height = 6,width = 18)
+DimPlot(sce, reduction = "umap", group.by = "type",raster=FALSE) +theme(aspect.ratio = 1)
+ggsave("P2-3.pdf",height = 6,width = 6)
+DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE) +theme(aspect.ratio = 1)
+ggsave("P2-4.pdf",height = 6,width = 6)
+DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE)+theme(aspect.ratio = 1)
+ggsave("umap_patient_id.pdf",height = 6,width = 7.8)
+#
+table(sce@meta.data$patient_id,sce@meta.data$celltype)
+
+#check the cell composition in each sample####
+Idents(sce) <- sce$celltype
+table(sce$patient_id)#查看各组细胞数
+prop.table(table(Idents(sce)))
+table(Idents(sce), sce$patient_id)#各组不同细胞群细胞数
+Cellratio <- prop.table(table(Idents(sce), sce$patient_id), margin = 2)#计算各组样本不同细胞群比例
+Cellratio <- as.data.frame(Cellratio)
+colnames(Cellratio)[1] <- "Cell_type"
+allcolour=c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F","#1E90FF","#7CFC00","#FFFF00",
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
+            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
+            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+library(ggplot2)
+ggplot(Cellratio) + 
+  geom_bar(aes(x =Var2, y= Freq, fill = Cell_type),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
+  theme_classic() +
+  labs(x='Sample',y = 'Ratio')+
+  scale_fill_manual(values = allcolour)
+#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+ggsave("P4.pdf",width = 10,height = 4)
+
+sce$celltype <- factor(sce$celltype,levels = c("B_cell","T/NK_cell","Myeloid_cell","Endothelial","Fibroblast","Malignancy_and_epi"))
+
+#to check cell compostion in each postion####
+Idents(sce) <- sce$celltype
+table(sce$type)#查看各组细胞数
+prop.table(table(Idents(sce)))
+table(Idents(sce), sce$type)#各组不同细胞群细胞数
+Cellratio <- prop.table(table(Idents(sce), sce$type), margin = 2)#计算各组样本不同细胞群比例
+Cellratio <- as.data.frame(Cellratio)
+colnames(Cellratio)[1] <- "Cell_type"
+allcolour=c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F","#1E90FF","#7CFC00","#FFFF00",
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
+            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
+            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+library(ggplot2)
+ggplot(Cellratio) + 
+  geom_bar(aes(x =Var2, y= Freq, fill = Cell_type),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
+  theme_classic() +
+  labs(x='Sample',y = 'Ratio')+
+  scale_fill_manual(values = allcolour)
+#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+ggsave("P5.pdf",width = 4,height = 6)
+
+
+#Calculate the similarity between cell types.
+#library(Seurat)
+library(pheatmap)
+Idents(sce)<- sce$celltype
+av.exp<- AverageExpression(sce)$RNA
+# av.exp<- av.exp[which(row.names(av.exp)%in% features),]
+features=names(tail(sort(apply(av.exp, 1, sd)),length(rownames(sce))))
+av.exp<- av.exp[which(row.names(av.exp)%in% features),]
+av.exp <- cor(av.exp, method= "spearman")
+pheatmap::pheatmap(av.exp,color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+
+pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#040206","#201B3F","#5A2766","#A64056","#CD663A","#DA8B3B","#EFEAAB"))(50))
+pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#1D2C6C", "#1C4A9E", "#34A2DC","#78C5AB","#C8DB49","#F3F900","#E72318"))(50))
+
+
+#Re-map the identified cell type sub-clusters to the larger groups for cell-chat preparation
+#epi
+table(sce@meta.data$celltype)
+sce$scelltype <- sce$celltype
+sce$scelltype[match(colnames(episce),colnames(sce))]<-episce$celltype%>%as.character()
+table(sce$scelltype)
+table(sce$celltype)
+#immune cell
+table(sce@meta.data$celltype)
+sce$scelltype <- sce$celltype
+sce$scelltype[match(colnames(isce),colnames(sce))]<-isce$celltype%>%as.character()
+table(sce$scelltype)
+table(sce$celltype)
+
+
+
+#Obtain differential genes for spatial transcriptomics projection.
+table(sce$scelltype)
+Idents(sce) <- "scelltype"
+fsce <- subset(sce, cells = colnames(sce)[which(sce$scelltype %in% c("Proliferating_tumor_cell","Tumor_cell","Fibroblast","Endothelial"))])
+fsce.markers <- FindAllMarkers(object = fsce, only.pos = TRUE, min.pct = 0.25, 
+                               thresh.use = 0.25)
+write.csv(fsce.markers,"Sig.markers.csv")
+
+#other cell subtypes projection#
+setwd("D:\\leadtest\\immune\\myeloid")
+load("msce_marker.Rdata")
+table(msce$celltype)
+
+sce$celltypedb[match(colnames(msce),colnames(sce))]<-msce$celltype%>%as.character()
+table(sce$celltypedb)
+
+#mac##
+setwd("D:\\leadtest\\immune\\myeloid\\macro2")
+load("masce_marker.Rdata")
+table(masce$celltype)
+sce$celltypedb[match(colnames(masce),colnames(sce))]<-masce$celltype%>%as.character()
+table(sce$celltypedb)
+
+#DC#
+setwd("D:\\leadtest\\immune\\myeloid\\DC")
+load("dcsce_marker.Rdata")
+table(dcsce$celltype)
+sce$celltypedb[match(colnames(dcsce),colnames(sce))]<-dcsce$celltype%>%as.character()
+table(sce$celltypedb)
+#neu#
+setwd("D:\\leadtest\\immune\\myeloid\\neu")
+load("neusce_marker.Rdata")
+table(neusce$celltype)
+sce$celltypedb[match(colnames(neusce),colnames(sce))]<-neusce$celltype%>%as.character()
+table(sce$celltypedb)
+
+#mono##
+setwd("D:\\leadtest\\immune\\myeloid\\mono")
+load("mosce_marker.Rdata")
+table(mosce$celltype)
+sce$celltypedb[match(colnames(mosce),colnames(sce))]<-mosce$celltype%>%as.character()
+table(sce$celltypedb)
+
+#T/nk#
+setwd("D:\\leadtest\\immune\\tnk")
+load("tksce_marker.Rdata")
+table(tksce$celltype)
+sce$celltypedb[match(colnames(tksce),colnames(sce))]<-tksce$celltype%>%as.character()
+table(sce$celltypedb)
+
+#B#
+setwd("D:\\leadtest\\immune\\B")
+load("bsce_marker.Rdata")
+table(bsce$celltype)
+sce$celltypedb[match(colnames(bsce),colnames(sce))]<-bsce$celltype%>%as.character()
+table(sce$celltypedb)
+table(sce$celltypedb,sce$celltype)
+
+#Fibro#
+setwd("D:\\leadtest\\fibro_all")
+load("fsce_all.marker.Rdata")
+table(fsce$celltype)
+
+sce$celltypedb[match(colnames(fsce),colnames(sce))]<-fsce$celltype%>%as.character()
+table(sce$celltypedb)
+table(sce$celltypedb,sce$celltype)
+
+#fibro,endothelial#
+sce$celltypedb[which(sce$celltype %in% c("Endothelial"))] <- "Endothelial"
+# sce$celltypedb[which(sce$celltype %in% c("Fibroblast"))] <- "Fibroblast"
+# sce$celltypedb[which(sce$celltype %in% c("Mast_cell"))] <- "Mast_cell"
+table(sce$celltype)
+table(sce$celltypedb)
+table(sce$celltypedb,sce$celltype)
+
+
+
+setwd("D:\\leadtest")
+#
+#cell_chat file preparation####
+setwd("D:\\leadtest\\cc")
+table(sce$type,sce$patient_id)
+table(sce$celltypedb,sce$celltype)
+#J_group
+Jsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("J"))])
+table(Jsce$type,Jsce$patient_id)
+write.table(as.matrix(Jsce@assays$RNA@data), 'Jsce_cellphonedb_count.txt', sep='\t', quote=F)
+meta_data <- cbind(rownames(Jsce@meta.data), Jsce@meta.data[,'celltypedb', drop=F])  
+meta_data <- as.matrix(meta_data)
+#meta_dat[is.na(meta_data)] = "Unknown" #  
+write.table(meta_data, 'Jsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
+#T_Group
+Tsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("T"))])
+table(Tsce$type,Tsce$patient_id)
+write.table(as.matrix(Tsce@assays$RNA@data), 'Tsce_cellphonedb_count.txt', sep='\t', quote=F)
+meta_data <- cbind(rownames(Tsce@meta.data), Tsce@meta.data[,'celltypedb', drop=F])  
+meta_data <- as.matrix(meta_data)
+# meta_dat[is.na(meta_data)] = "Unkown" 
+write.table(meta_data, 'Tsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
+
+setwd("D:\\leadtest")
+
+##save_files####
+save(sce,file = 'ICC9case_markers.Rdata')
+rm(list = ls());gc()
+setwd("D:\\leadtest")
+load("ICC9case_markers.Rdata")
+library(Seurat)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+library(dplyr)
