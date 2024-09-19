@@ -192,16 +192,17 @@ VlnPlot(ICC, group.by = "patient_id", features = feats, pt.size = 0.01, ncol = 1
 ggsave("mito_ribo_hb_beforeQC.pdf",height = 9,width = 12)
 FeatureScatter(ICC, "nCount_RNA", "nFeature_RNA", group.by = "orig.ident", pt.size = 0.5)
 ggsave("nFeature_nCount_scatter_beforeQC.pdf",height = 6,width = 6)
-#根据上述指标，过滤低质量细胞/基因
-#过滤指标1:最少表达基因数的细胞&最少表达细胞数的基因
+
+#Key filter info
 selected_c <- WhichCells(ICC, expression = nFeature_RNA > 500)
 selected_f <- rownames(ICC)[Matrix::rowSums(ICC@assays$RNA@counts > 0 ) > 20]
 ICC.filt <- subset(ICC, features = selected_f, cells = selected_c)
-#过滤前/过滤后
-dim(ICC) 
-dim(ICC.filt) 
-#过滤指标2:线粒体/核糖体基因比例(根据上面的violin图),
-selected_mito <- WhichCells(ICC.filt, expression = percent_mito < 25)#文章写了超过20%的去除
+
+#
+dim(ICC) #before
+dim(ICC.filt) #after
+#
+selected_mito <- WhichCells(ICC.filt, expression = percent_mito < 25)
 length(selected_mito)
 #selected_ribo <- WhichCells(ICC.filt, expression = percent_ribo > 3)#我的数据里核糖体的比例也有点高
 #length(selected_ribo)
@@ -214,96 +215,51 @@ ICC.filt <- subset(ICC.filt, cells = selected_mito)
 #ICC.filt <- subset(ICC.filt, cells = selected_hb)
 dim(ICC) #before
 dim(ICC.filt)#after
+#check how many cell left in each sample
+table(ICC.filt$patient_id) 
 
-table(ICC.filt$patient_id) #看一下每个病人多少
-#这里需要做个图，每个病人过滤后多少个细胞
-
-#可视化过滤后的情况
+#
 feats <- c("nFeature_RNA", "nCount_RNA")
 VlnPlot(ICC.filt, group.by = "patient_id", features = feats, pt.size = 0.1, ncol = 1) + 
   NoLegend()
 ggsave("nFeat_nCount_afterQC.pdf",height = 6,width = 12)
 
-#指控后线粒体基因情况
+#
 feats <- c("percent_mito", "percent_ribo", "percent_hb")
 VlnPlot(ICC.filt, group.by = "patient_id", features = feats, pt.size = 0.1, ncol = 1) + 
   NoLegend()
 ggsave("mito_ribo_hb_afterQC.pdf",height = 9,width = 12)
-#保存数据
+#
 save(ICC.filt, file = "ICC.filt_9_ICCcase.RData")
 
-#分群
+#
 rm(list=ls());gc()
 load("ICC.filt_9_ICCcase.RData")
 #scale data
 sce=ICC.filt 
-#给位置信息排序####
+#rank positional info####
 sce$type <- factor(sce$type,c("N","J","T"))
 rm(ICC.filt)
-sce
 
+#standard protocal
+sce
 sce <- NormalizeData(sce,normalization.method = "LogNormalize") 
 sce <- FindVariableFeatures(sce)
 sce <- FindVariableFeatures(object = sce, selection.method = "vst", nfeatures = 2000)
-sce <- ScaleData(sce)##应用线性变换缩放数据，这是一个标准的预处理步骤，比PCA等降维技术更重要。使用ScaleData函数（1）使每个基因在所有细胞间的表达量均值为0（2）使每个基因在所有细胞间的表达量方差为1
+sce <- ScaleData(sce)
 sce <- RunPCA(sce
               #, features = rownames(sce)
               )
-#sce <- RunPCA(sce, features = VariableFeatures(object = sce),dims =1:50)
-#VizDimLoadings(object = sce, dims = 1:4, reduction = "pca",nfeatures = 20)
-#Idents(sce) <- sce@meta.data$old.ident#把（）设为active_idents
-#DimPlot(object = sce, reduction = "pca")
-#DimHeatmap(object = sce, dims = 1:4, balanced = TRUE,nfeatures = 10,ncol=2)
-#sce <- JackStraw(object = sce, num.replicate = 100,dims = 50)
-#sce <- ScoreJackStraw(object = sce, dims = 1:50)
-#JackStrawPlot(object = sce, dims = 1:50)
-#ggsave("pcaJackStraw.pdf",width=12,height=6)
-#ElbowPlot(sce,ndims = 50, reduction = "pca")
-#ggsave("Elobowplot.pdf",width=6,height=6)
+
 sce <- RunTSNE(object = sce,dims = 1:20)
-#sce <- RunTSNE(object = sce)
+
 DimPlot(sce, reduction = "tsne", label = T)
 names(sce@reductions)
 sce <- RunUMAP(sce,dims =1:20, reduction = "pca")
-#DimPlot(sce,reduction = "umap",group.by = "orig.ident") 
-DimPlot(sce,reduction = "umap",group.by = "patient_id",raster=FALSE) 
-sce <- FindNeighbors(sce) 
-####选择不同的分辨率#####
-#设置不同的分辨率，观察分群效果
-for (res in c(0.01, 0.05, 0.1,0.15, 0.2, 0.3, 0.5,0.8,1,1.5,2,3)) {
-  sce=FindClusters(sce, #graph.name = "CCA_snn", 
-                   resolution = res, algorithm = 1)
-}
-colnames(sce@meta.data)
-apply(sce@meta.data[,grep("RNA_snn",colnames(sce@meta.data))],2,table)
-library(cowplot)
-sce_dim <-plot_grid(ncol = 3, 
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.01") +ggtitle("louvain_0.01"), 
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.05") + ggtitle("louvain_0.05"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.1") +  ggtitle("louvain_0.1"), 
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.15") + ggtitle("louvain_0.15"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.2") + ggtitle("louvain_0.2"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.3") +ggtitle("louvain_0.3")
-)
-sce_dim
-ggsave("Dimplot_diff_resolution_low.pdf",width = 20,height = 12)
-sce_dim <-plot_grid(ncol = 3, 
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.5") + ggtitle("louvain_0.5"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.0.8") +  ggtitle("louvain_0.8"), 
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.1") + ggtitle("louvain_1"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.1.5") + ggtitle("louvain_1.5"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.2") + ggtitle("louvain_2"),
-                    DimPlot(sce, reduction = "umap", group.by = "RNA_snn_res.3") +ggtitle("louvain_3")
-)
-sce_dim
-ggsave(filename="Dimplot_diff_resolution_high.pdf",width = 20,height = 12)
+DimPlot(sce,reduction = "umap",group.by = "patient_id",raster=FALSE) #we can find batch effect here
 
-library(clustree)
-tree<-clustree(sce@meta.data, prefix = "RNA_snn_res.")
-tree
-ggsave(plot=tree, filename="Tree_diff_resolution.pdf",height = 20,width = 15)
 
-#CCA####
+#use CCA to remove batch effect 
 DefaultAssay(sce) <- "RNA"
 sce = FindVariableFeatures(sce,nfeatures = 500)
 sce = ScaleData(sce
@@ -312,11 +268,11 @@ sce = ScaleData(sce
 sce = RunPCA(sce, npcs = 50)
 sce = RunUMAP(sce, dims = 1:50)
 DimPlot(sce,reduction = "umap",group.by = "patient_id") 
-# define the expected number of doublet cells cells.
+
 table(sce$patient_id)
 sce.all=sce
 sce.all
-#拆分为 个seurat子对象
+
 sce.all.list <- SplitObject(sce.all, split.by = "patient_id")
 sce.all.list
 for (i in 1:length(sce.all.list)) {
@@ -326,21 +282,20 @@ for (i in 1:length(sce.all.list)) {
                                             nfeatures = 500, verbose = FALSE)
 }
 #features <- SelectIntegrationFeatures(object.list = sce.all.list,nfeatures = 500)
-#耗时，1h~2h左右
+
 alldata.anchors <- FindIntegrationAnchors(object.list = sce.all.list, dims = 1:30,
                                           anchor.features = 500,
                                           reduction = "cca")
-# #这些放在linux上跑
+# the alldata.ahchors is to large,we run the Integratedata in linux platform  
 save(alldata.anchors,file="anchors.Rdata")
 library(Seurat)
 library(ggplot2) 
 library(stringr)
 load("anchors.Rdata")
-# memory.limit(10000000000000)
 sce.all.int <- IntegrateData(anchorset = alldata.anchors, dims = 1:30, new.assay.name = "CCA")
 save(sce.all.int,file="sce.all.int.Rdata")
 ###
-#读取linux_CCA结果
+#reload the linux_CCA result
 load("sce.all.int.Rdata")
 names(sce.all.int@assays)
 #[1] "RNA" "CCA"
@@ -348,16 +303,13 @@ sce.all.int@active.assay
 #[1] "CCA"
 sce.all.int=ScaleData(sce.all.int)
 sce.all.int=RunPCA(sce.all.int, npcs = 50)
-
-##选择合适的pc
-
-
 sce.all.int=RunTSNE(sce.all.int, dims = 1:30)
 sce.all.int=RunUMAP(sce.all.int, dims = 1:30)
 names(sce.all.int@reductions)
 names(sce.all@reductions)
 colnames(sce.all@meta.data) 
 library(cowplot)
+#to compare the results of the batch-remove move
 p1.compare=plot_grid(ncol = 2,
                      DimPlot(sce.all, reduction = "pca", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("PCA raw_data")+theme(aspect.ratio = 1),
                      #DimPlot(sce.all, reduction = "tsne", group.by = "patient_id")+NoAxes()+ggtitle("tSNE raw_data")+theme(aspect.ratio = 1),
@@ -370,23 +322,20 @@ p1.compare=plot_grid(ncol = 2,
 p1.compare
 ggsave(plot=p1.compare,filename="Before&After_int.pdf",width = 18,height = 12)
 
-
-
-#分cluster##
+#clustering
 sce.all.int
 sce.all
 sce=sce.all.int
 sce@active.assay
-sce=FindNeighbors(sce, dims = 1:20#原本20
+sce=FindNeighbors(sce, dims = 1:20
                   #k.param = 60, 
                   #prune.SNN = 1/15
 )
-#设置不同的分辨率，观察分群效果(选择哪一个？)
+#
 for (res in c(0.01, 0.05, 0.1, 0.2, 0.3, 0.5,0.8,1,1.5,2,3,4)) {
   sce=FindClusters(sce, graph.name = "CCA_snn", resolution = res, algorithm = 1)
 }
 apply(sce@meta.data[,grep("CCA_snn_res",colnames(sce@meta.data))],2,table)
-
 
 p1_dim=plot_grid(ncol = 3, 
                  DimPlot(sce, reduction = "umap",group.by = "CCA_snn_res.0.01") + ggtitle("louvain_0.01")+theme(aspect.ratio = 1), 
@@ -412,11 +361,12 @@ tree=clustree(sce@meta.data, prefix = "CCA_snn_res.")
 tree
 ggsave(plot=tree, filename="Tree_diff_resolution.pdf",width = 12,height = 12)
 
-#接下来分析，按照分辨率为0.3进行#### 
+#select res.1 for further processing
 sel.clust = "CCA_snn_res.1"
 sce <- SetIdent(sce, value = sel.clust)
 sce@active.ident <- factor(sce@active.ident,levels = c(0:(length(table(sce@active.ident))-1)))
 table(sce@active.ident) 
+#to calculate the DEGs of each cluster for cell identification
 sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.25, 
                               thresh.use = 0.25)
 write.csv(sce.markers,"sce.markers.csv")
@@ -426,49 +376,26 @@ DoHeatmap(sce,top5$gene,size=3)
 genes_to_check =top5$gene
 ggsave(filename=paste0(sel.clust,'_sce.markers_heatmap.pdf'),width =18,height = 12)
 
-####检查常见分2群####
-DimPlot(sce, reduction = "umap", group.by = "patient_id",label = T,raster=FALSE) +theme(aspect.ratio = 1)
-ggsave('umap_by_patient_id.pdf',width = 6.5,height = 6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,label = T,raster=FALSE) #用
-ggsave('umap_by_CCA_snn_res.0.5.pdf',width = 7.6,height = 6)+theme(aspect.ratio = 1)
-DimPlot(sce, reduction = "umap",split.by = 'patient_id',group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
-ggsave('umap_by_CCA_snn_res.0.5.pdf',width = 30,height = 6)
-
-####总体定亚群####
-options(stringsAsFactors = F)
-library(patchwork)
-library(Seurat)
-library(ggplot2)
-library(clustree)
-library(cowplot)
-library(dplyr)
-library(ggplot2) 
-library(stringr) 
-library(ggplot2) 
-####总体marker集合####
-# 需要自行看图，定细胞亚群：
+#cell identification part
+#add cell_info to meta.data
 celltype=data.frame(ClusterID=0:(length(table(Idents(sce)))-1),celltype=0:(length(table(Idents(sce)))-1)) 
 celltype[celltype$ClusterID %in% c(16,
                                    22,
                                    23,
-                                   32
-                                   
+                                   32                                   
 ),2]='B_cell'
 celltype[celltype$ClusterID %in% c(6,
                                    13,
                                    19,
-                                   26
-                                   
+                                   26                                   
 ),2]='Malignancy_and_epi'
 celltype[celltype$ClusterID %in% c(12,
                                    18,
-                                   20
-                                   
+                                   20                                   
 ),2]='Endothelial'
 celltype[celltype$ClusterID %in% c(14,
                                    15,
-                                   33
-                                   
+                                   33                                   
 ),2]='Fibroblast'
 # celltype[celltype$ClusterID %in% c(15
 # 
@@ -481,8 +408,7 @@ celltype[celltype$ClusterID %in% c(5,
                                    25,
                                    27,
                                    28,
-                                   29
-                                   
+                                   29                                   
 ),2]='Myeloid_cell' 
 celltype[celltype$ClusterID %in% c(0,
                                    1,
@@ -495,8 +421,7 @@ celltype[celltype$ClusterID %in% c(0,
                                    24,
                                    30,
                                    31,
-                                   34
-                                   
+                                   34                                   
 ),2]='T/NK_cell'
 # celltype[celltype$ClusterID %in% c(21
 #                                    
@@ -518,284 +443,34 @@ genes_to_check = c("BANK1", "CD79B", 'CD79A','MS4A1',#B cell
                    "HLA-DPB1","MS4A6A","LYZ","FTL",# myeloid CST3
                    'CD2', 'CD3D', 'CD3E',"CD69" #T cells
 )
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
+#show markers in each subsets
 th=theme(axis.text.x = element_text(angle = 90)) 
 DotPlot(sce, features = unique(genes_to_check),
         assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
 ggsave("P1.pdf",width = 8.5,height =3)
 table(sce$celltype)
 #sce$celltype_CCA_0.3 <- sce$celltype
-#细胞类型的tsne图
-DimPlot(sce, reduction = "tsne", group.by = "celltype",label = T,raster=FALSE)+theme(aspect.ratio = 1) #用
-ggsave("tsne_celltype.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1)#用
+#
+
+DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1)
 ggsave("P3.pdf",height = 6,width = 7.6)
 DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,
-        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)#用
+        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)
 ggsave("P2.pdf",height = 6,width = 7.6)
 
 DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,split.by = "type",
-        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)#用
+        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)
 ggsave("P2-2.pdf",height = 6,width = 18)
-DimPlot(sce, reduction = "umap", group.by = "type",raster=FALSE) +theme(aspect.ratio = 1)#用
+DimPlot(sce, reduction = "umap", group.by = "type",raster=FALSE) +theme(aspect.ratio = 1)
 ggsave("P2-3.pdf",height = 6,width = 6)
-DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE) +theme(aspect.ratio = 1)#用
+DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE) +theme(aspect.ratio = 1)
 ggsave("P2-4.pdf",height = 6,width = 6)
-
-#每个病人的分布图
 DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE)+theme(aspect.ratio = 1)
 ggsave("umap_patient_id.pdf",height = 6,width = 7.8)
-##需要查看每个病人的每种细胞的分布，发现可能不太对
+#
 table(sce@meta.data$patient_id,sce@meta.data$celltype)
-###查看目的基因方法####
-#查看一下目标基因,方法1
-FeaturePlot(object = sce, features = c("SFN"),cols = c("grey","red"),reduction = "umap")+theme(aspect.ratio = 1)
-DimPlot(sce, reduction = "umap", group.by = "celltype")+theme(aspect.ratio = 1)
-DimPlot(sce, reduction = "umap", group.by = "celltype")+theme(aspect.ratio = 1)|FeaturePlot(object = sce, features = c("DTL"),cols = c("grey","red"),reduction = "umap")+theme(aspect.ratio = 1)
-ggsave("SFN_expr_tsne.pdf",width = 14,height = 6)#
-#查看一下目标基因,方法2
-genes_to_check = c("BANK1", "CD79B", 'CD79A','MS4A1',#B cell
-                   'CDH5','CLDN5','VWF',"FCN3",#Endothelial
-                   'COL1A1','ACTA2',"COL1A2","COL3A1", #fibroblast
-                   'KRT19','KRT7','EPCAM',"ALB", #Malignancy and epi
-                   "HLA-DPB1","MS4A6A","LYZ","FTL",# monocyte CST3
-                   'CD2', 'CD3D', 'CD3E',"CD69", #T cells
-                   "SFN"#target gene
-)
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltype' ,cols = c("#84BAB8", "#D2B452"))+th
-ggsave("SFN_gene_expression.pdf",width = 12 ,height =4.5)#figure 1F
-#featureplot####
-DefaultAssay(sce) <- "RNA"
-genes <- c("CD3E","LYZ","TPSB2","KRT19","ALB","ACTA2","CDH5","BANK1","GNLY","JCHAIN","MS4A1")
-for(i in genes){
-  FeaturePlot(sce, features = i,ncol = 1,raster=FALSE,
-              cols = c("white" ,"red"),
-              slot = "data",label.size = 6,pt.size = 0.1) + 
-    theme(axis.line = element_blank(), 
-          axis.text = element_blank(), 
-          axis.ticks = element_blank(), 
-          axis.title = element_blank(),
-          aspect.ratio = 1
-    ) + 
-    guides(color=F)
-  ggsave(paste0(i,"_featureplot.pdf"),width = 4,height = 4)
-}
 
-#查看每个基因在某个细胞群的表达情况，方法3
-# add cell type
-Idents(sce) <- sce$celltype
-# get pc data
-library(dplyr)
-pc <- Embeddings(sce,reduction = 'tsne') %>% data.frame()
-pc$celltype <- sce$celltype
-pc$SFN <- FetchData(sce, vars = c("SFN")) %>% .$SFN
-##主图
-pmain <- ggplot(pc,aes(x = tSNE_1,y = tSNE_2,color = celltype)) +
-  geom_point(size = 0.5) +
-  # scale_color_npg(name = '') +
-  scale_color_brewer(palette = 'Set3',name = '') +
-  theme_bw(base_size = 14) +
-  theme(panel.grid = element_blank(),
-        plot.margin = margin(l = 10,r = 0,unit = 'pt'),
-        aspect.ratio = 1)
-pmain
-ggsave("main.pdf",width = 6,height = 6)
-##分图
-pc2 <- pc[which(pc$celltype %in% c("Malignancy and epi")),]
-psmall <- ggplot(pc2,aes(x = tSNE_1,y = tSNE_2)) +
-  # scale_color_npg(name = '') +
-  geom_point(aes(color = SFN),size = 0.1)+
-  scale_color_gradient(high = "#D2B452", low ="#84BAB8")+
-  theme_bw(base_size = 14) +
-  #xlab('') + ylab('') +
-  theme(panel.grid = element_blank(),
-        axis.ticks = element_blank(),
-        axis.text = element_blank(),
-        strip.text = element_text(size = 10),
-        plot.margin = margin(l = 0,r = 10,unit = 'pt'),
-        strip.background = element_rect(colour = NA,fill = NA),
-        aspect.ratio = 1
-  )+
-  labs(title = "SFN expression")+
-  facet_wrap(~celltype,ncol = 3,strip.position = 'top')
-psmall
-ggsave("samll.pdf",width = 4,height = 4)
-
-#查看目的基因的情况，李勇剑，程倩索查基因表达情况
-genes_to_check = c('WWP1', 'GINS2', 'DTL', 'SFN',  #T cells
-                   'ANKRD22','NAT14', #(NK) cells
-                   'NAT10','HAT1','NDRG1','UBE2O',
-                   'FUT1','FUT2','FUT3','FUT4','FUT6','FUT7','FUT8','FUT10','FUT11','POFUT1','POFUT2'
-)
-genes_to_check = c('FUT1','FUT2','FUT3','FUT4','FUT6','FUT7','FUT8','FUT10','FUT11','POFUT1','POFUT2')
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltype' ,cols = c("#84BAB8", "#D2B452"))+th
-
-#每个群标记基因的表达情况
-VlnPlot(sce, features = c("C1QA", "C1QB","C1QC"),group.by = sel.clust)
-FeaturePlot(object = sce, features = c("WWP1", "UBE2O"),cols = c("blue", "red"),reduction = "tsne")
-FeaturePlot(object = sce, features = c("HAT1", "NDRG1", "NAT14", "NAT10"),cols = c("blue", "red"),reduction = "tsne")
-####
-DotPlot(sce, features = genes_to_check, assay='RNA' ,group.by = 'celltype' ) +  coord_flip()+ scale_y_discrete(guide = guide_axis(n.dodge = 2)) +
-  NULL
-table(sce@meta.data$celltype,sce@meta.data$CCA_snn_res.0.5)
-
-sce$celltype_CCA_0.5 <- sce$celltype
-#接下来分析，按照分辨率为3进行 ####
-sel.clust = "CCA_snn_res.3"
-sce <- SetIdent(sce, value = sel.clust)
-sce@active.ident <- factor(sce@active.ident,levels = c(0:(length(table(sce@active.ident))-1)))
-table(sce@active.ident) 
-sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.25, 
-                              thresh.use = 0.25)
-write.csv(sce.markers,"sce.markers.csv")
-library(dplyr) 
-top5 <- sce.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
-DoHeatmap(sce,top5$gene,size=3)
-genes_to_check =top5$gene
-ggsave(filename=paste0(sel.clust,'_sce.markers_heatmap.pdf'),width =18,height = 12)
-
-####检查常见分2群####
-DimPlot(sce, reduction = "umap", group.by = "patient_id",label = T) +theme(aspect.ratio = 1)
-ggsave('umap_by_patient_id.pdf',width = 6.5,height = 6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T) #用
-ggsave('umap_by_CCA_snn_res.3.pdf',width = 7.6,height = 6)+theme(aspect.ratio = 1)
-DimPlot(sce, reduction = "umap",split.by = 'patient_id',group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
-ggsave('umap_by_CCA_snn_res.3.pdf',width = 30,height = 6)
-
-####总体定亚群####
-options(stringsAsFactors = F)
-library(patchwork)
-library(Seurat)
-library(ggplot2)
-library(clustree)
-library(cowplot)
-library(dplyr)
-library(ggplot2) 
-library(stringr) 
-library(ggplot2) 
-####总体marker集合####
-
-# 需要自行看图，定细胞亚群：
-celltype=data.frame(ClusterID=0:(length(table(Idents(sce)))-1),celltype=0:(length(table(Idents(sce)))-1)) 
-celltype[celltype$ClusterID %in% c(17,
-                                   35,
-                                   53,
-                                   56
-                                   
-),2]='B_cell'
-celltype[celltype$ClusterID %in% c(16,
-                                   22,
-                                   26,
-                                   28,
-                                   33,
-                                   34,
-                                   36,
-                                   40,
-                                   41,
-                                   45,
-                                   49,
-                                   52
-                                   
-),2]='Malignancy_and_epi'
-celltype[celltype$ClusterID %in% c(24,
-                                   37,
-                                   43,
-                                   46,
-                                   50
-                                   
-),2]='Endothelial'
-celltype[celltype$ClusterID %in% c(13,
-                                   14,
-                                   23,
-                                   32,
-                                   51,
-                                   57
-                                   
-),2]='Fibroblast'
-celltype[celltype$ClusterID %in% c(31
-                                   
-),2]='Mast_cell'
-celltype[celltype$ClusterID %in% c(6,
-                                   12,
-                                   15,
-                                   19,
-                                   20,
-                                   25,
-                                   27,
-                                   29,
-                                   30,
-                                   38,
-                                   39,
-                                   42,
-                                   48,
-                                   54,
-                                   55
-                                   
-),2]='Myeloid_cell' 
-celltype[celltype$ClusterID %in% c(0,
-                                   1,
-                                   2,
-                                   3,
-                                   4,
-                                   5,
-                                   7,
-                                   8,
-                                   9,
-                                   10,
-                                   11,
-                                   18,
-                                   21,
-                                   44,
-                                   47
-                                   
-),2]='T/NK_cell'
-head(celltype)
-celltype
-table(celltype$celltype)
-sce@meta.data$celltype = "NA"
-for(i in 1:nrow(celltype)){
-  sce@meta.data[which(sce@meta.data$CCA_snn_res.3 == celltype$ClusterID[i]),'celltype'] <- celltype$celltype[i]}
-table(sce@meta.data$celltype)
-th=theme(axis.text.x = element_text(angle = 45, 
-                                    vjust = 0.5, hjust=0.5)) 
-genes_to_check = c("BANK1", "CD79B", 'CD79A','MS4A1',#B cell
-                   'CDH5','CLDN5','VWF',"FCN3",#Endothelial
-                   'COL1A1','ACTA2',"COL1A2","COL3A1","ZFPM2", #fibroblast
-                   'KRT19','KRT7','EPCAM',"ALB", #Malignancy and epi
-                   "TPSAB1","TPSB2","MS4A2","CPA3",  #MAST 
-                   "HLA-DPB1","MS4A6A","LYZ","FTL",# myeloid CST3
-                   'CD2', 'CD3D', 'CD3E',"CD69" #T cells
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltype')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("markers_by_celltype_before_inferCNV.pdf",width = 8.5,height =3)
-#细胞类型的降维图
-DimPlot(sce, reduction = "tsne", group.by = "celltype",label = T)+theme(aspect.ratio = 1) 
-ggsave("tsne_celltype.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
-ggsave("umap_resolution.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = "celltype",label = T) +theme(aspect.ratio = 1)
-ggsave("umap_celltype.pdf",height = 6,width = 7.6)
-#每个病人的分布图
-DimPlot(sce, reduction = "umap", group.by = "patient_id")+theme(aspect.ratio = 1)
-ggsave("umap_patient_id.pdf",height = 6,width = 7.8)
-##需要查看每个病人的每种细胞的分布，发现可能不太对
-table(sce@meta.data$patient_id,sce@meta.data$celltype)
-sce$celltype_CCA_3 <- sce$celltype
-
-#各个细胞类型比例图####
+#check the cell composition in each sample####
 Idents(sce) <- sce$celltype
 table(sce$patient_id)#查看各组细胞数
 prop.table(table(Idents(sce)))
@@ -818,7 +493,7 @@ ggsave("P4.pdf",width = 10,height = 4)
 
 sce$celltype <- factor(sce$celltype,levels = c("B_cell","T/NK_cell","Myeloid_cell","Endothelial","Fibroblast","Malignancy_and_epi"))
 
-#各个细胞类型比例图2####
+#to check cell compostion in each postion####
 Idents(sce) <- sce$celltype
 table(sce$type)#查看各组细胞数
 prop.table(table(Idents(sce)))
@@ -839,170 +514,8 @@ ggplot(Cellratio) +
 #+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
 ggsave("P5.pdf",width = 4,height = 6)
 
-#各个细胞类型比例图3####
-#各type分组的细胞比例
-df <- FetchData(sce, vars = c('celltype', 'type',"patient_id"))
-table(df$type)#查看各组细胞数
-table(df$patient_id)#查看各组细胞数
-prop.table(table(df$celltype))
-prop.table(table(df$type))
-table(df$celltype, df$type)#各组不同细胞群细胞数
-table(df$celltype, df$patient_id)
-Cellratio <- prop.table(table(df$celltype,df$patient_id),margin = 2)#计算各组样本不同细胞群比例
-Cellratio <- as.data.frame(Cellratio)
-colnames(Cellratio) <- c('celltype',"patient_id","Freq")
-#添加分组信息,手动添加
-Cellratio$type <- ""
-Cellratio$type <- substr(Cellratio$patient_id,5,5)
-Cellratio$patient <- substr(Cellratio$patient_id,1,3)
-# #添加分组信息,手动添加
-# Cellratio$type <- ""
-# Cellratio$type[which(Cellratio$patient_id %in% unique(df$patient_id[which(df$type =="low")]))] <- "low"
-# Cellratio$type[which(Cellratio$patient_id %in% unique(df$patient_id[which(df$type =="high")]))] <- "high"
-# table(Cellratio$type)
-#方法一
-ggplot(Cellratio, aes(x=type, y=Freq,color=type)) + 
-  geom_jitter(width = 0.2, alpha = 0.5)+facet_wrap(~celltype)  
-library(ggsci)
-library(tidyr)
-library(ggpubr)
-#方法二 颜色改一下
-Cellratio$type <- factor(Cellratio$type,levels=c("N","J","T"))#修改柱状图位置
-class(Cellratio$type)
-#按照J的免疫细胞的中位值
-plot_order = Cellratio[Cellratio$type=="N",] %>% 
-  group_by(celltype) %>% 
-  summarise(m = median(Freq)) %>% 
-  arrange(desc(m)) %>% 
-  pull(celltype)
 
-Cellratio$celltype = factor(Cellratio$celltype,levels = plot_order)
-#出图
-ggboxplot(Cellratio, x = "celltype", y = "Freq",
-          fill = "type", palette = c("#2B9885","#DA6C4F","#E2BE6A"))+
-  stat_compare_means(aes(group = type),
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
-                     label = "p.signif",
-                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
-                                      symbols = c("***", "**", "*", "")))
-#ggsave("immune_prop_by_type.pdf",width = 6,height = 4)#用
-allcolour=c("#2F89CA","#F2C31C","#DD1F4D","#FFA500","#9370DB",#1-5
-            "#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",#6-10
-            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3",#11-15
-            "#800080","#A0522D","#D2B48C","#D2691E","#87CEEB",#16-20
-            "#40E0D0","#5F9EA0","#063A94","#0000CD","#008B8B",#21-25
-            "#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4",
-            "#32CD32","#F0E68C","#FFFFE0","#EE82EE","#FF6347",
-            "#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
-#分面柱状图3##
-my_comparisons = list( c("N", "J"),c("N", "T"),c("J", "T"))
-ggplot(Cellratio, aes(x = type, y = Freq))+ 
-  labs(y="Proportion",x= "Position",title = "Cell composition")+
-  scale_colour_manual(name="", values =allcolour)+
-  geom_boxplot(aes(color = type),position=position_dodge(0.5),size=0.4,
-               outlier.alpha = 1, outlier.size = 0.5)+
-  theme_bw() + 
-  theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())+
-  scale_y_continuous(labels = scales::percent
-                     #limits = c(0, max(Cellratio$Freq)+0.1)
-  )+#根据p值的范围调整
-  geom_point(data = Cellratio, aes(x = type, y = Freq, fill=patient), #patient_id改成样本号
-             size = 5, shape = 21,stroke = 0.5,alpha = 0.5)+
-  facet_wrap(~ celltype,scales = "free",ncol = 4) + 
-  stat_compare_means(aes(group = type),comparisons = my_comparisons,
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
-                     #ref.group = "HCC",
-                     size = 5,
-                     hide.ns =T,
-                     label = "p.signif",
-                     #label.y=max(Cellratio$Freq),
-                     #label.x = 1.5,#两个名称之间
-                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
-                                      symbols = c("***", "**", "*", "")
-                     )
-  )
-#ggsave(paste0(name,"_immune_prop_by_type2.pdf"),width = 8,height = 4)#用
-
-
-allcolour=c("#1CB4B8","#F2C31C","#DD1F4D","#FFA500","#9370DB",#1-5
-            "#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",#6-10
-            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3",#11-15
-            "#800080","#A0522D","#D2B48C","#D2691E","#87CEEB",#16-20
-            "#40E0D0","#5F9EA0","#063A94","#0000CD","#008B8B",#21-25
-            "#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4",
-            "#32CD32","#F0E68C","#FFFFE0","#EE82EE","#FF6347",
-            "#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
-my_comparisons = list( c("N", "J"),c("N", "T"),c("J", "T"))
-ggboxplot(Cellratio, x = "type", y = "Freq",
-          fill = "type", palette = allcolour)+
-  theme(legend.position="right", panel.border = element_rect(color = "black",  fill = NA))+
-  facet_wrap(~ celltype,scales = "free",ncol = 8) + 
-  geom_point(data = Cellratio, aes(x = type, 
-                                   y = Freq, 
-                                   color = patient), #patient_id改成样本号
-             size = 6, 
-             shape = 21,
-             stroke = 0.5,alpha = 0.5)+
-  stat_compare_means(comparisons = my_comparisons,
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
-                     label = "p.signif",
-                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
-                                      symbols = c("***", "**", "*", "")))+ggtitle("Cell type")+
-  theme(plot.title = element_text(hjust = 0.5))
-ggsave("allcell_prop_by_type2.pdf",width = 9,height = 3)#用
-
-
-#单个画图#
-table(Cellratio$celltype)
-Cellratio <- Cellratio[which(Cellratio$celltype =="SPP1+_Macro"),]
-my_comparisons = list( c("N", "J"),c("N", "T"),c("J", "T"))
-ggboxplot(Cellratio, x = "type", y = "Freq",
-          fill = "type", palette = allcolour)+
-  theme(legend.position="right")+
-  geom_point(data = Cellratio, aes(x = type, 
-                                   y = Freq, 
-                                   color = patient), #patient_id改成样本号
-             size = 6, 
-             shape = 21,
-             stroke = 0.5,alpha = 0.5)+
-  stat_compare_means(comparisons = my_comparisons,
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
-                     label = "p.signif",
-                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
-                                      symbols = c("***", "**", "*", "ns")))+ggtitle("SPP1+_Macro")+
-  theme(plot.title = element_text(hjust = 0.5))
-ggsave("immune_prop_by_type.pdf",width = 6,height = 4)#用
-
-#各细胞比例图3
-library(RColorBrewer)
-Idents(sce) <- sce$celltype
-dat1 <- as.data.frame(table(Idents(sce)))
-dat2 <- as.data.frame(prop.table(table(Idents(sce))))
-dat <- merge(dat1,dat2,by="Var1")
-myLabel = paste(dat$Var1, "(", round(dat$Freq.y / 1, 3)*100, "%)", sep = "") 
-myPalette <- brewer.pal(13, "Set2") 
-pdf("Global.pdf",height = 6,width = 6)
-pie(dat$Freq.x , labels = myLabel, border="white", col=myPalette )#用
-dev.off()
-table(sce$orig.ident)
-# 特殊亚群处理####
-DimPlot(sce, reduction = "umap", group.by = "CCA_snn_res.3",split.by = "CCA_snn_res.3",ncol = 10)+theme(aspect.ratio = 1)
-p <- DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
-data <- p$data
-sce$test<- sce$CCA_snn_res.3
-table(sce$test)
-sce$test <- as.character(sce$test)
-sce$test[which(colnames(sce) %in% rownames(data)[which( data$UMAP_2>5 & data$CCA_snn_res.3 %in% c(30) ) ])] <- "30.1"
-sce$test[which(colnames(sce) %in% rownames(data)[which( data$UMAP_2<5 & data$CCA_snn_res.3 %in% c(30)) ])] <- "30.2"
-table(sce$test)
-Idents(sce) <- "test"
-table(sce@active.ident)
-sce$celltype[which(colnames(sce) %in% rownames(data)[which( data$UMAP_2>5 & data$CCA_snn_res.3 %in% c(30) ) ])] <- "Myeloid_cell"
-sce$celltype[which(colnames(sce) %in% rownames(data)[which( data$UMAP_2<5 & data$CCA_snn_res.3 %in% c(30)) ])] <- "T/NK_cell"
-
-
-###查看细胞类型之间的相关性
+#Calculate the similarity between cell types.
 #library(Seurat)
 library(pheatmap)
 Idents(sce)<- sce$celltype
@@ -1017,965 +530,29 @@ pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#040206","#201B3F","#5A276
 pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#1D2C6C", "#1C4A9E", "#34A2DC","#78C5AB","#C8DB49","#F3F900","#E72318"))(50))
 
 
-
-
-
-
-
-#各位置比例图比较,批量饼图####
-dat1 <- as.data.frame(table(Idents(sce), sce$orig.ident))#orig.ident可以换成type和patient_id
-dat2 <- as.data.frame(prop.table(table(Idents(sce), sce$orig.ident), margin = 2))
-dat <- cbind(dat1,dat2)
-dat <- dat[,-c(2,4)]
-#修改变量名称
-colnames(dat) <- c("celltype","Freq","group","proportion")
-dat$myLabel = paste(dat$celltype, "(", round(dat$proportion / 1, 3)*100, "%)", sep = "") 
-myPalette <- brewer.pal(13, "Set2")
-for (i in unique(dat$group)){
-  dat_used <- dat %>% filter(group==i)
-  pdf(paste0(i,"_pie.pdf"),height = 6,width = 6)
-  pie(dat_used$Freq , labels =dat_used$myLabel, border="white", col=myPalette,main=i)#用
-  dev.off()
-}
-
-##单细胞组合图#####
-#提取meta信息
-dat <- FetchData(sce, vars = c('orig.ident', 'celltype','type','patient_id'))
-table(dat$type)#查看各组细胞数
-table(dat$patient_id)#查看各组细胞数
-table(dat$celltype)
-prop.table(table(dat$celltype))
-prop.table(table(dat$type))
-table(dat$celltype, dat$type)#各组不同细胞群细胞数
-table(dat$celltype, dat$patient_id)
-#计算各组样本不同细胞群比例
-Cellratio1 <- as.data.frame(prop.table(table(dat$celltype,dat$type),margin = 2))
-Cellratio1$Var3 <- "type"
-Cellratio2 <- as.data.frame(prop.table(table(dat$celltype,dat$orig.ident),margin = 2))
-Cellratio2$Var3 <- "orig.ident"
-Cellratio3 <- as.data.frame(prop.table(table(dat$celltype,dat$patient_id),margin = 2))#计算各组样本不同细胞群比例
-Cellratio3$Var3 <- "patient_id"
-
-Cellratio <- rbind(Cellratio1,Cellratio2,Cellratio3)
-colnames(Cellratio) <- c('celltype',"var","Freq","var2")
-#画气泡图
-#part1
-ggplot(Cellratio,aes(x = var,
-                     y= celltype,
-                     size = Freq)) +
-  scale_discrete_manual(values=allcolour,aesthetics = 'colour')+
-  geom_point(aes(color = celltype),alpha = 1)+
-  scale_size(range = c(0,5)) +
-  labs(title = "Over view of this study",
-       subtitle = "Myeloid",
-       # x = "Markers of immunal genes",
-       y="Cell_type",
-       size="Cell Proportion")+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(),text = element_text(size=10),
-        axis.text.x = element_text(angle=90, hjust=1))+
-  geom_vline(xintercept=c(3.5,9.5), cex=0.5)
-ggsave("part1.pdf",height = 2.5,width = 7)
-#画柱状图part2
-table(dat$type,dat$celltype)#查看各组细胞数
-table(dat$patient_id)#查看各组细胞数
-table(dat$orig.ident)
-dat1 <- as.data.frame(table(dat$type,dat$celltype))
-dat2 <- as.data.frame(table(dat$orig.ident,dat$celltype))
-dat3 <- as.data.frame(table(dat$patient_id,dat$celltype))
-dat4 <-rbind(dat1,dat2,dat3)
-#画图测试
-allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
-            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
-            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
-            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
-library(ggplot2)
-ggplot(dat4) + 
-  geom_bar(aes(x =Var1, y= Freq, fill = Var2),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
-  theme_classic() +
-  labs(x='Sample',y = 'Ratio')+
-  scale_fill_manual(values = allcolour)+
-  geom_vline(xintercept=c(3.5,9.5), cex=0.5)
-#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
-ggsave("part2.pdf",height = 3,width = 7)
-#part3
-#画柱状图part2
-table(dat$type,dat$celltype)#查看各组细胞数
-table(dat$patient_id)#查看各组细胞数
-table(dat$orig.ident)
-dat1 <- as.data.frame(table(dat$type,dat$celltype))
-dat2 <- as.data.frame(table(dat$orig.ident,dat$celltype))
-dat3 <- as.data.frame(table(dat$patient_id,dat$celltype))
-dat4 <-rbind(dat1,dat2,dat3)
-
-dat1 <- as.data.frame(table(dat$type,dat$celltype))
-#画图测试
-allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
-            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
-            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
-            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
-library(ggplot2)
-ggplot(dat1) + 
-  geom_bar(aes(x =Freq, y= Var2,fill=Var2),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
-  theme_classic() +
-  labs(x='Sample',y = 'Ratio')+
-  scale_fill_manual(values = allcolour)+
-  geom_vline(xintercept=c(3.5,6.5), cex=0.5)
-#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
-ggsave("part3.pdf",height = 3,width = 7)
-#置于AI上进行再加工
-
-
-
-
-#把epi映射到大队列中去####
+#Re-map the identified cell type sub-clusters to the larger groups for cell-chat preparation
+#epi
 table(sce@meta.data$celltype)
 sce$scelltype <- sce$celltype
 sce$scelltype[match(colnames(episce),colnames(sce))]<-episce$celltype%>%as.character()
 table(sce$scelltype)
 table(sce$celltype)
-#免疫细胞亚群映射到大队列中去
+#immune cell
 table(sce@meta.data$celltype)
 sce$scelltype <- sce$celltype
 sce$scelltype[match(colnames(isce),colnames(sce))]<-isce$celltype%>%as.character()
 table(sce$scelltype)
 table(sce$celltype)
 
-#细胞类型的tsne图
-DimPlot(sce, reduction = "tsne", group.by = "scelltype",label = T)+theme(aspect.ratio = 1) #用
-ggsave("tsne_scelltype.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T) +theme(aspect.ratio = 1)#用
-ggsave("umap_resolution.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = "scelltype",label = T) +theme(aspect.ratio = 1)#用
-ggsave("tsne_scelltype.pdf",height = 6,width = 7.6)
 
-#提取肿瘤细胞，增值肿瘤细胞细胞，成纤维细胞做差异基因分析用于addmodule分析#####
+
+#Obtain differential genes for spatial transcriptomics projection.
 table(sce$scelltype)
 Idents(sce) <- "scelltype"
 fsce <- subset(sce, cells = colnames(sce)[which(sce$scelltype %in% c("Proliferating_tumor_cell","Tumor_cell","Fibroblast","Endothelial"))])
 fsce.markers <- FindAllMarkers(object = fsce, only.pos = TRUE, min.pct = 0.25, 
                                thresh.use = 0.25)
 write.csv(fsce.markers,"Sig.markers.csv")
-#LGALS9####
-genes_to_check = c("LGALS9","CSF1","CSF1R"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("LGALS9__by_celltype.pdf",width = 8.5,height =3)
-
-
-VlnPlot(sce, features = c("LGALS9"),group.by = "celltypedb",pt.size = 0)
-ggsave("LGALS9.pdf",width = 12,height =3)
-#NECTIN2####
-genes_to_check = c("NECTIN2"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'type',cols = c("white", "red"))+coord_flip()+th
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("NECTIN2_markers_by_celltype.pdf",width = 8.5,height =3)
-
-
-VlnPlot(sce, features = c("NECTIN2"),group.by = "celltypedb",pt.size = 0)
-ggsave("NECTIN2.pdf",width = 12,height =3)
-#TIGIT####
-genes_to_check = c("TIGIT"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'type',cols = c("white", "red"))+coord_flip()+th
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("TIGIT_markers_by_celltype.pdf",width = 8.5,height =3)
-
-
-VlnPlot(sce, features = c("TIGIT"),group.by = "celltypedb",pt.size = 0)
-ggsave("TIGIT.pdf",width = 12,height =3)
-
-#EGFR####
-genes_to_check = c("EGFR"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("EGFR_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("EGFR"),group.by = "celltypedb",pt.size = 0)
-ggsave("EGFR.pdf",width = 12,height =3)
-
-
-#AREG####
-genes_to_check = c("AREG"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("AREG_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("AREG"),group.by = "celltypedb",pt.size = 0)
-ggsave("AREG.pdf",width = 12,height =3)
-
-#NECTIN2####
-genes_to_check = c("NECTIN2"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("NECTIN2_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("NECTIN2"),group.by = "celltypedb",pt.size = 0)
-ggsave("NECTIN2.pdf",width = 12,height =3)
-
-#TIGIT####
-genes_to_check = c("TIGIT"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("TIGIT_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("TIGIT"),group.by = "celltypedb",pt.size = 0)
-ggsave("TIGIT.pdf",width = 12,height =3)
-
-#NAMPT####
-genes_to_check = c("NAMPT"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("NAMPT_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("NAMPT"),group.by = "celltypedb",pt.size = 0)
-ggsave("NAMPT.pdf",width = 12,height =3)
-
-#INSR####
-genes_to_check = c("INSR"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("INSR_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("INSR"),group.by = "celltypedb",pt.size = 0)
-ggsave("INSR.pdf",width = 12,height =3) 
-
-#CD48####
-genes_to_check = c("CD48"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CD48_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("CD48"),group.by = "celltypedb",pt.size = 0)
-ggsave("CD48.pdf",width = 12,height =3)
-
-#TGFA####
-genes_to_check = c("TGFA"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("TGFA_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("TGFA"),group.by = "celltypedb",pt.size = 0)
-ggsave("TGFA.pdf",width = 12,height =3)
-
-
-#CD244####
-genes_to_check = c("CD244"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CD244_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("CD244"),group.by = "celltypedb",pt.size = 0)
-ggsave("CD244.pdf",width = 12,height =3)
-#IFNG####
-genes_to_check = c("IFNG"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("IFNG_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("IFNG"),group.by = "celltypedb",pt.size = 0)
-ggsave("IFNG.pdf",width = 12,height =3)
-# CCL21####
-genes_to_check = c("CCL21"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCL21_markers_by_celltype.pdf",width = 8,height =8)
-
-VlnPlot(sce, features = c("CCL21"),group.by = "celltypedb",pt.size = 0)
-ggsave("CCL21.pdf",width = 12,height =3)
-# CXCR3####
-genes_to_check = c("CXCR3"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCR3_markers_by_celltype.pdf",width = 8,height =8)
-
-VlnPlot(sce, features = c("CXCR3"),group.by = "celltypedb",pt.size = 0)
-ggsave("CXCR3.pdf",width = 12,height =3)
-# CXCL9####
-genes_to_check = c("CXCL9"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCL9_markers_by_celltype.pdf",width = 8,height =8)
-
-VlnPlot(sce, features = c("CXCL9"),group.by = "celltypedb",pt.size = 0)
-ggsave("CXCL9.pdf",width = 12,height =3)
-
-
-# CCL19####
-genes_to_check = c("CCL19"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCL19_markers_by_celltype.pdf",width = 8,height =8)
-
-VlnPlot(sce, features = c("CCL19"),group.by = "celltypedb",pt.size = 0)
-ggsave("CCL19.pdf",width = 12,height =3)
-#NECTIN2####
-genes_to_check = c("TIGIT","NECTIN2","NECTIN3","SIRPA","CD47"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)+th
-ggsave("NECTIN2_by_celltype.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("NECTIN2"),group.by = "celltypedb",pt.size = 0)
-ggsave("NECTIN2.pdf",width = 12,height =3)
-# cytokine####
-genes_to_check = c("CCL3","CCL4","CCL5","CCL7","CCL8","CCL13","CCL14","CCL15","CCL16","CCL23","CCR1",
-                   "CCL2","CCL7","CCL13","CCL16","CCR2",
-                   "CCL4","CCL5","CCL7","CCL8","CCL11","CCL13","CCL15","CCL16","CCL23","CCL24","CCL26","CCL28","CCR3",
-                   "CCL3","CCL5","CCL17","CCL22","CCR4",
-                   "CCL2","CCL3","CCL4","CCL5","CCL8","CCL11","CCL13","CCL14","CCL16","CCR5",
-                   "CCL20","CCR6",
-                   "CCL19","CCL21","CCR7",
-                   "CCL1","CCL4","CCL16","CCL17","CCL18","CCR8",
-                   "CCL25","CCR9",
-                   "CCL27","CCL28","CCR10",
-                   "CXCL1","CXCL6","CXCL7","CXCL8","CXCL1","CXCL2","CXCL3","CXCL5","CXCL6","CXCL7","CXCL8","CXCR2",
-                   "CXCL4","CXCL9","CXCL10","CXCL11","CXCL13","CXCR3",
-                   "CXCL12","CXCR4","CXCL13","CXCR5","CXCL16","CXCR6","CXCL11","CXCL12","CXCR7","XCL1","XCL2","XCR1","CX3CL1","CX3R1"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("cytokine_circle__by_celltype.pdf",width = 14,height =10)
-# CXCR6####
-genes_to_check = c("CXCL12","CXCR4","CXCL13","CXCR5","CXCL16","CXCR6",
-                   "CXCL11","CXCL12","CXCR7",
-                   "XCL1","XCL2","XCR1","CX3CL1","CX3R1"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCR6_circle__by_celltype.pdf",width = 9,height =12)
-
-# mregDC####
-genes_to_check = c("CXCL16","CXCL10","CXCL9","ICOSLG","IL15RA","IL15","IL12B","PVRL2","PVR","CD86","CD80","CD274","PDCD1LG2","EBI3","CCL17","CCL22","CCL19","XCL1","IFNG","LTB","CD40LG","CXCL13","IL21","CH25H"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("mregDC_circle__by_celltype.pdf",width = 9,height =12)
-# cytokine####
-genes_to_check = c("CCL3","CCL4","CCL5","CCL7","CCL8","CCL13","CCL14","CCL15","CCL16","CCL23","CCR1",
-                   "CCL2","CCL7","CCL13","CCL16","CCR2",
-                   "CCL4","CCL5","CCL7","CCL8","CCL11","CCL13","CCL15","CCL16","CCL23","CCL24","CCL26","CCL28","CCR3",
-                   "CCL3","CCL5","CCL17","CCL22","CCR4",
-                   "CCL2","CCL3","CCL4","CCL5","CCL8","CCL11","CCL13","CCL14","CCL16","CCR5",
-                   "CCL20","CCR6",
-                   "CCL19","CCL21","CCR7",
-                   "CCL1","CCL4","CCL8","CCL16","CCL17","CCL18","CCR8",
-                   "CCL25","CCR9",
-                   "CCL27","CCL28","CCR10",
-                   "CXCL1","CXCL6","CXCL7","CXCL8","CXCL1","CXCL2","CXCL3","CXCL5","CXCL6","CXCL7","CXCL8","CXCR2",
-                   "CXCL4","CXCL9","CXCL10","CXCL11","CXCL13","CXCR3",
-                   "CXCL12","CXCR4","CXCL13","CXCR5","CXCL16","CXCR6","CXCL11","CXCL12","CXCR7","XCL1","XCL2","XCR1","CX3CL1","CX3R1"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("cytokine_circle__by_celltype.pdf",width = 15,height =12)
-# mregDC####
-genes_to_check = c("CXCL16","CXCL10","CXCL9","ICOSLG","IL15RA","IL15","IL12B","PVRL2","PVR","CD86","CD80","CD274","PDCD1LG2","EBI3","CCL17","CCL22","CCL19","XCL1","IFNG","LTB","CD40LG","CXCL13","IL21","CH25H"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("mregDC_circle__by_celltype.pdf",width = 9,height =12)
-
-# mregDC2####
-genes_to_check = c("GPR183","IL21R",
-                   "CXCR5","CD40","LTBR",
-                   "IFNGR1","IFNGR2","XCR1","CCR7", "CCR4",
-                   "IL6ST","PDCD1","CTLA4","CD28","TIGIT","CD226",
-                   "CD96","PVRIG","IL12RB1","IL2RB","ICOS","CXCR3","CXCR6"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("mregDC2_circle__by_celltype.pdf",width = 9,height =12)
-
-# CCR1####
-genes_to_check = c("CCL3","CCL4","CCL5","CCL7","CCL8","CCL13","CCL14","CCL15","CCL16","CCL23","CCR1"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR1_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-# CCR2####
-genes_to_check = c("CCL2","CCL7","CCL13","CCL16","CCR2"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR2_cytokine_circle__by_celltype.pdf",width = 6,height =12)
-# CCR3####
-genes_to_check = c("CCL4","CCL5","CCL7","CCL8","CCL11","CCL13","CCL15","CCL16","CCL23","CCL24","CCL26","CCL28","CCR3"
-                   
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR3_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-# CCR4####
-genes_to_check = c("CCL3","CCL5","CCL17","CCL22","CCR4"
-                   
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR4_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-# CCR5####
-genes_to_check = c("CCL2","CCL3","CCL4","CCL5","CCL8","CCL11","CCL13","CCL14","CCL16","CCR5"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR5_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-# CCR67####
-genes_to_check = c("CCL20","CCR6",
-                   "CCL19","CCL21","CCR7"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR67_cytokine_circle__by_celltype.pdf",width = 6,height =12)
-# CCR8910####
-genes_to_check = c(
-  "CCL1","CCL4","CCL8","CCL16","CCL17","CCL18","CCR8",
-  "CCL25","CCR9",
-  "CCL27","CCL28","CCR10"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCR8910_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-# CXCR2####
-genes_to_check = c(
-  "CXCL1","CXCL6","CXCL7","CXCL8","CXCL1","CXCL2","CXCL3","CXCL5","CXCL6","CXCL7","CXCL8","CXCR2"
-  
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCR2_cytokine_circle__by_celltype.pdf",width = 8,height =12)
-
-#EGFR####
-genes_to_check = c("EGFR"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("EGFR_markers_by_celltype.pdf",width = 8,height =8)
-
-
-VlnPlot(sce, features = c("EGFR"),group.by = "celltypedb",pt.size = 0)
-ggsave("EGFR.pdf",width = 12,height =3)
-
-
-
-# TNF####
-genes_to_check = c("TNF"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("TNF_markers_by_celltype.pdf",width = 8,height =8)
-
-VlnPlot(sce, features = c("TNF"),group.by = "celltypedb",pt.size = 0)
-ggsave("TNF.pdf",width = 12,height =3)
-
-
-#Deg_type####
-Idents(sce) <- "type"
-table(sce@active.ident) 
-sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.01, 
-                              thresh.use = 0.1)
-write.csv(sce.markers,"Deg_type.csv")
-
-#Deg_celltypedb####
-Idents(sce) <- "celltypedb"
-table(sce@active.ident) 
-sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.01, 
-                              thresh.use = 0.1)
-write.csv(sce.markers,"Deg_celltypedb.csv")
-
-#cytocine####
-genes_to_check = c("CCL5","CXCL12","CCL8","CXCL8","CXCR4","CCL19","CCL21"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("cytocine_by_celltype.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL5"),group.by = "celltypedb",pt.size = 0)
-ggsave("cytocine.pdf",width = 12,height =3)
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='type')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("cytocine_by_type.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL5"),group.by = "celltypedb",pt.size = 0)
-ggsave("cytocine.pdf",width = 12,height =3)
-
-#CCL19####
-genes_to_check = c("CCL19"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCL19_by_celltype.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL19"),group.by = "celltypedb",pt.size = 0)
-ggsave("CCL19.pdf",width = 12,height =3)
-
-# CXCR3####
-genes_to_check = c("CXCL4","CXCL9","CXCL10","CXCL11","CXCL13","CXCR3"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCR3_cytokine_circle__by_celltype.pdf",width = 7,height =12)
-
-#TGFB1####
-genes_to_check = c("TGFBR1","TGFBR2","TGFB1"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+theme(axis.text.x = element_text(angle = 90)) 
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)+theme(axis.text.x = element_text(angle = 90)) 
-ggsave("TGFB1_by_celltype.pdf",width = 6,height =10)
-VlnPlot(sce, features = c("TGFB1"),group.by = "celltypedb",pt.size = 0)
-ggsave("TGFB1.pdf",width = 12,height =3)
-
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='type')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("TGFB1_by_type.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("TGFB1"),group.by = "celltypedb",pt.size = 0)
-ggsave("TGFB1.pdf",width = 12,height =3)
-
-#CCL21####
-genes_to_check = c(#"CCL21","CCL4","CCL3",
-                   "CCR5","CCR8"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+theme(axis.text.x = element_text(angle = 90)) 
-#CCL19####
-genes_to_check = c("IFNG"
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+theme(axis.text.x = element_text(angle = 90)) 
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("IFNG_by_celltype.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL19"),group.by = "celltypedb",pt.size = 0)
-ggsave("IFNG.pdf",width = 12,height =3)
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCL21_by_celltype.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL21"),group.by = "celltypedb",pt.size = 0)
-ggsave("CCL21.pdf",width = 12,height =3)
-
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='type')+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CCL21_by_type.pdf",width = 5,height =6)
-VlnPlot(sce, features = c("CCL21"),group.by = "celltypedb",pt.size = 0)
-ggsave("CCL21.pdf",width = 12,height =3)
-
-
-#ITGA1####
-genes_to_check <- c("ITGA1", "ITGA2", "ITGA3", "ITGA5", "ITGA6", "ITGA7", "ITGA8", "ITGA9")
-
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltypedb')+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("CXCR3_cytokine_circle__by_celltype.pdf",width = 7,height =12)
-
-
-
-#接下来分析，按照分辨率为1.5进行#### 
-sel.clust = "CCA_snn_res.1.5"
-sce <- SetIdent(sce, value = sel.clust)
-sce@active.ident <- factor(sce@active.ident,levels = c(0:(length(table(sce@active.ident))-1)))
-table(sce@active.ident) 
-sce.markers <- FindAllMarkers(object = sce, only.pos = TRUE, min.pct = 0.25, 
-                              thresh.use = 0.25)
-write.csv(sce.markers,"sce.markers.csv")
-library(dplyr) 
-top5 <- sce.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
-DoHeatmap(sce,top5$gene,size=3)
-genes_to_check =top5$gene
-ggsave(filename=paste0(sel.clust,'_sce.markers_heatmap.pdf'),width =18,height = 12)
-
-#检查常见分2群#
-DimPlot(sce, reduction = "umap", group.by = "patient_id",label = T,raster=FALSE) +theme(aspect.ratio = 1)
-ggsave('umap_by_patient_id.pdf',width = 6.5,height = 6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,label = T,raster=FALSE) #用
-ggsave('umap_by_CCA_snn_res.0.5.pdf',width = 7.6,height = 6)+theme(aspect.ratio = 1)
-DimPlot(sce, reduction = "umap",split.by = 'patient_id',group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
-ggsave('umap_by_CCA_snn_res.0.5.pdf',width = 30,height = 6)
-
-#总体定亚群#
-options(stringsAsFactors = F)
-library(patchwork)
-library(Seurat)
-library(ggplot2)
-library(clustree)
-library(cowplot)
-library(dplyr)
-library(ggplot2) 
-library(stringr) 
-library(ggplot2) 
-#
-# 需要自行看图，定细胞亚群：
-celltype=data.frame(ClusterID=0:(length(table(Idents(sce)))-1),celltype=0:(length(table(Idents(sce)))-1)) 
-celltype[celltype$ClusterID %in% c(13,
-                                   21,
-                                   28,
-                                   42,
-                                   44
-                                   
-),2]='B_cell'
-celltype[celltype$ClusterID %in% c(9,
-                                   19,
-                                   20,
-                                   30,
-                                   31,
-                                   36,
-                                   40
-                                   
-                                   
-),2]='Malignancy_and_epi'
-celltype[celltype$ClusterID %in% c(11,
-                                   18,
-                                   27,
-                                   29
-                                   
-),2]='Endothelial'
-celltype[celltype$ClusterID %in% c(16,
-                                   17,
-                                   24,
-                                   41,
-                                   45
-                                   
-),2]='Fibroblast'
-celltype[celltype$ClusterID %in% c(38
-                                   
-                                   
-),2]='Mast_cell'
-celltype[celltype$ClusterID %in% c(4, 6,
-                                   8,
-                                   10,
-                                   15,
-                                   23,22,
-                                   25,
-                                   32,
-                                   35,
-                                   37,
-                                   39,
-                                   43
-                                   
-),2]='Myeloid_cell' 
-celltype[celltype$ClusterID %in% c(0,
-                                   1,
-                                   2,
-                                   3,
-                                   5,
-                                   
-                                   7,
-                                   12,
-                                   14,
-                                   
-                                   26,
-                                   33,
-                                   34
-                                   
-),2]='T/NK_cell'
-# celltype[celltype$ClusterID %in% c(21
-#                                    
-# ),2]='Unknown'
-head(celltype)
-celltype
-table(celltype$celltype)
-sce@meta.data$celltype = "NA"
-for(i in 1:nrow(celltype)){
-  sce@meta.data[which(sce@active.ident == celltype$ClusterID[i]),'celltype'] <- celltype$celltype[i]}
-table(sce@meta.data$celltype)
-th=theme(axis.text.x = element_text(angle = 45, 
-                                    vjust = 0.5, hjust=0.5)) 
-genes_to_check = c("BANK1", "CD79B", 'CD79A','MS4A1',#B cell
-                   'CDH5','CLDN5','VWF',"FCN3",#Endothelial
-                   'COL1A1','ACTA2',"COL1A2","COL3A1", #fibroblast
-                   'KRT19','KRT7','EPCAM',"ALB", #Malignancy and epi
-                   "TPSAB1","TPSB2","MS4A2","CPA3",  #MAST 
-                   "HLA-DPB1","MS4A6A","LYZ","FTL",# myeloid CST3
-                   'CD2', 'CD3D', 'CD3E',"CD69" #T cells
-)
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by = 'celltype',cols = c("white", "red"))+coord_flip()+th
-
-#实际使用图
-th=theme(axis.text.x = element_text(angle = 90)) 
-DotPlot(sce, features = unique(genes_to_check),
-        assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
-ggsave("P1.pdf",width = 8.5,height =3)
-#细胞类型的tsne图
-DimPlot(sce, reduction = "tsne", group.by = "celltype",label = T,raster=FALSE)+theme(aspect.ratio = 1) #用
-ggsave("tsne_celltype.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1)#用
-ggsave("P3.pdf",height = 6,width = 7.6)
-DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,
-        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)#用
-ggsave("P2.pdf",height = 6,width = 7.6)
-
-DimPlot(sce, reduction = "umap", group.by = "celltype",raster=FALSE,split.by = "type",
-        label = T,cols = c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F")) +theme(aspect.ratio = 1)#用
-ggsave("P2-2.pdf",height = 6,width = 18)
-DimPlot(sce, reduction = "umap", group.by = "type",raster=FALSE) +theme(aspect.ratio = 1)#用
-ggsave("P2-3.pdf",height = 6,width = 6)
-DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE) +theme(aspect.ratio = 1)#用
-ggsave("P2-4.pdf",height = 6,width = 6)
-
-#每个病人的分布图
-DimPlot(sce, reduction = "umap", group.by = "patient_id",raster=FALSE)+theme(aspect.ratio = 1)
-ggsave("umap_patient_id.pdf",height = 6,width = 7.8)
-##需要查看每个病人的每种细胞的分布，发现可能不太对
-table(sce@meta.data$patient_id,sce@meta.data$celltype)
-sce$celltype_CCA_1.5 <- sce$celltype
-
-#cpdb细胞数据整理####
-sce$celltypedb <- "Unknown"
-#肿瘤细胞
-setwd('D:\\leadtest\\epi\\inferCNV_epi')
-load("episce_markers.Rdata")
-#去掉P4 张连清###
-table(episce$patient)
-#episce <- subset(episce, cells = colnames(episce)[which(!episce$patient %in% c("P04"))])
-table(episce$celltype)
-table(episce$patient_id)
-#映射
-library(dplyr)
-#把epi映射到大队列中去#
-table(episce$celltype)
-sce$celltypedb[match(colnames(episce),colnames(sce))]<-episce$celltype%>%as.character()
-table(sce$celltypedb)
-#其他免疫细胞投影一下#
-setwd("D:\\leadtest\\immune")
-load("isce.raw.Rdata")
-table(isce$celltype)
-
-sce$celltypedb[match(colnames(isce),colnames(sce))]<-isce$celltype%>%as.character()
-table(sce$celltypedb)
-
 
 #其他免疫细胞投影一下#
 setwd("D:\\leadtest\\immune\\myeloid")
@@ -2061,32 +638,28 @@ table(sce$celltypedb,sce$type)
 
 
 setwd("D:\\leadtest")
-# #cc准备文件####
-# Jsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("J"))])
-# save(Jsce,file = "cc_J_cellphonedb.Rdata")
-# Tsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("T"))])
-# save(Tsce,file = "cc_T_cellphonedb.Rdata")
-#cpdb准备文件####
-setwd("D:\\leadtest\\cpdb")
+# #cell####
+#cell_chat preparation####
+setwd("D:\\leadtest\\cc")
 table(sce$type,sce$patient_id)
 table(sce$celltypedb,sce$celltype)
-#J组
+#J_group
 Jsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("J"))])
 table(Jsce$type,Jsce$patient_id)
 write.table(as.matrix(Jsce@assays$RNA@data), 'Jsce_cellphonedb_count.txt', sep='\t', quote=F)
 meta_data <- cbind(rownames(Jsce@meta.data), Jsce@meta.data[,'celltypedb', drop=F])  
 meta_data <- as.matrix(meta_data)
-#meta_dat[is.na(meta_data)] = "Unknown" #  细胞类型中不能有NA
+#meta_dat[is.na(meta_data)] = "Unknown" #  
 write.table(meta_data, 'Jsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
-#T组
+#T_Group
 Tsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("T"))])
 table(Tsce$type,Tsce$patient_id)
 write.table(as.matrix(Tsce@assays$RNA@data), 'Tsce_cellphonedb_count.txt', sep='\t', quote=F)
 meta_data <- cbind(rownames(Tsce@meta.data), Tsce@meta.data[,'celltypedb', drop=F])  
 meta_data <- as.matrix(meta_data)
-# meta_dat[is.na(meta_data)] = "Unkown" #  细胞类型中不能有NA
+# meta_dat[is.na(meta_data)] = "Unkown" 
 write.table(meta_data, 'Tsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
-#N组
+#N_Group
 Nsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("N"))])
 table(Nsce$type,Nsce$patient_id)
 write.table(as.matrix(Nsce@assays$RNA@data), 'Nsce_cellphonedb_count.txt', sep='\t', quote=F)
@@ -2094,14 +667,6 @@ meta_data <- cbind(rownames(Nsce@meta.data), Nsce@meta.data[,'celltypedb', drop=
 meta_data <- as.matrix(meta_data)
 # meta_dat[is.na(meta_data)] = "Unkown" #  细胞类型中不能有NA
 write.table(meta_data, 'Nsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
-#JT组
-JTsce <- subset(sce, cells = colnames(sce)[which(sce$type %in% c("T","J"))])
-table(JTsce$type,JTsce$patient_id)
-write.table(as.matrix(JTsce@assays$RNA@data), 'JTsce_cellphonedb_count.txt', sep='\t', quote=F)
-meta_data <- cbind(rownames(JTsce@meta.data), JTsce@meta.data[,'celltypedb', drop=F])  
-meta_data <- as.matrix(meta_data)
-# meta_dat[is.na(meta_data)] = "Unkown" #  细胞类型中不能有NA
-write.table(meta_data, 'JTsce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
 
 #所有组
 write.table(as.matrix(sce@assays$RNA@data), 'sce_cellphonedb_count.txt', sep='\t', quote=F)
@@ -2110,12 +675,6 @@ meta_data <- as.matrix(meta_data)
 # meta_dat[is.na(meta_data)] = "Unkown" #  细胞类型中不能有NA
 write.table(meta_data, 'sce_cellphonedb_meta.txt', sep='\t', quote=F, row.names=F)
 setwd("D:\\leadtest")
-
-#cpdb代码#
-cellphonedb method statistical_analysis  Tsce_cellphonedb_meta.txt  Tsce_cellphonedb_count.txt --counts-data=gene_name --output-path=outTsce --threads=8;cellphonedb plot dot_plot --means-path=/home/sutai/work/cpdb/outTsce/means.txt --pvalues-path=/home/sutai/work/cpdb/outTsce/pvalues.txt --output-path=outTsce;cellphonedb plot heatmap_plot Tsce_cellphonedb_meta.txt --pvalues-path=/home/sutai/work/cpdb/outTsce/pvalues.txt --output-path=outTsce
-cellphonedb method statistical_analysis  Jsce_cellphonedb_meta.txt  Jsce_cellphonedb_count.txt --counts-data=gene_name --output-path=outJsce --threads=8;cellphonedb plot dot_plot --means-path=/home/sutai/work/cpdb/outJsce/means.txt --pvalues-path=/home/sutai/work/cpdb/outJsce/pvalues.txt --output-path=outJsce;cellphonedb plot heatmap_plot Jsce_cellphonedb_meta.txt --pvalues-path=/home/sutai/work/cpdb/outJsce/pvalues.txt --output-path=outJsce
-cellphonedb method statistical_analysis  Nsce_cellphonedb_meta.txt  Nsce_cellphonedb_count.txt --counts-data=gene_name --output-path=outNsce --threads=8;cellphonedb plot dot_plot --means-path=/home/sutai/work/cpdb/outNsce/means.txt --pvalues-path=/home/sutai/work/cpdb/outNsce/pvalues.txt --output-path=outNsce;cellphonedb plot heatmap_plot Nsce_cellphonedb_meta.txt --pvalues-path=/home/sutai/work/cpdb/outNsce/pvalues.txt --output-path=outNsce
-
 
 
 #相关性热图J####
@@ -2182,11 +741,8 @@ isce_J$celltype <- factor(isce_J$celltype,levels = c("CD4+T_c0_Tcm_ANXA1",
                                                      "NK_c2_CD56bright_CD16lo_CD160hi", 
                                                      "NK_c3_CD56dim_CD16hi_CD160", 
                                                      "NK_c4_CD56bright_XCL1", 
-                                                     
-                                                     
-                                                     
-                                                     
-                                                     "C1QA_Macro", 
+
+                                                      "C1QA_Macro", 
                                                      "SPP1_Macro",
                                                      "IL1B_Macro",
                                                      "Proliferating_Macro"  ))
@@ -2236,9 +792,8 @@ corrplot(wide_df2, p.mat = testRes$p,
          col =  colorRampPalette(c("navy", "white", "firebrick3"))(50),
          method = 'color', diag = FALSE,  tl.col="black",
          type = 'lower', sig.level = c(0.001, 0.01, 0.05), pch.cex = 1.5, insig = 'label_sig', pch.col = 'grey20')
-
 #9x9
-?corrplot()
+
 
 
 #相关性热图T####
