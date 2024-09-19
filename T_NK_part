@@ -1,0 +1,564 @@
+setwd("D:\\leadtest\\immune")
+#t/nk_cell
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Seurat)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+library(stringr) 
+
+#extracting cell
+load("isce.raw.Rdata")
+table(isce$celltype)
+name = "tnk_cell"
+tksce <- subset(isce, cells = colnames(isce)[which(isce$celltype %in% c('T/NK_cell'))])
+table(tksce$celltype)
+setwd("D:\\leadtest\\immune\\tnk")
+save(tksce,file ="tksce.Rdata")
+
+rm(list =ls());gc()
+load("tksce.Rdata")
+table(tksce$type,tksce$patient_id)
+
+#reclustering####
+#CCA####
+DefaultAssay(tksce) <- "RNA"
+tksce = FindVariableFeatures(tksce,nfeatures = 500)
+tksce = ScaleData(tksce
+                 #vars.to.regress = c("nFeature_RNA", "percent_mito")
+)
+tksce = RunPCA(tksce, npcs = 50)
+tksce = RunUMAP(tksce, dims = 1:47)
+table(tksce$patient_id)
+tksce.all=tksce
+tksce.all
+tksce.all.list <- SplitObject(tksce.all, split.by = "patient_id")
+tksce.all.list
+for (i in 1:length(tksce.all.list)) {
+  print(i)
+  tksce.all.list[[i]] <- NormalizeData(tksce.all.list[[i]], verbose = FALSE)
+  tksce.all.list[[i]] <- FindVariableFeatures(tksce.all.list[[i]], selection.method = "vst", 
+                                             nfeatures = 500, verbose = FALSE)
+}
+#features <- SelectIntegrationFeatures(object.list = tksce.all.list,nfeatures = 500)
+alldata.anchors <- FindIntegrationAnchors(object.list = tksce.all.list, dims = 1:30,
+                                          anchor.features = 500,
+                                          reduction = "cca")
+
+tksce.all.int <- IntegrateData(anchorset = alldata.anchors, dims = 1:30, new.assay.name = "CCA")
+
+save(tksce.all.int,file="tksce.all.int_240509.Rdata")
+# load("tksce.all.int.Rdata")
+names(tksce.all.int@assays)
+
+tksce.all.int@active.assay
+tksce.all.int=ScaleData(tksce.all.int)
+tksce.all.int=RunPCA(tksce.all.int, npcs = 50)
+tksce.all.int=RunUMAP(tksce.all.int, dims = 1:30)
+names(tksce.all.int@reductions)
+names(tksce.all@reductions)
+colnames(tksce.all@meta.data) 
+library(cowplot)
+p1.compare=plot_grid(ncol = 2,
+                     DimPlot(tksce.all, reduction = "pca", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("PCA raw_data")+theme(aspect.ratio = 1),
+                     DimPlot(tksce.all, reduction = "umap", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("UMAP raw_data")+theme(aspect.ratio = 1),
+                     
+                     DimPlot(tksce.all.int, reduction = "pca", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("PCA integrated")+theme(aspect.ratio = 1),
+                     DimPlot(tksce.all.int, reduction = "umap", group.by = "patient_id",raster=FALSE)+NoAxes()+ggtitle("UMAP integrated")+theme(aspect.ratio = 1)
+)
+p1.compare
+ggsave(plot=p1.compare,filename="Before&After_int.pdf",width = 18,height = 12)
+tksce.all.int
+tksce.all
+tksce=tksce.all.int
+tksce@active.assay
+tksce=FindNeighbors(tksce, dims = 1:30
+                   #k.param = 60, 
+                   #prune.SNN = 1/15
+)
+for (res in c(0.01, 0.05, 0.1, 0.2, 0.3, 0.5,0.8,1,1.5,2,3)) {
+  tksce=FindClusters(tksce, graph.name = "CCA_snn", resolution = res, algorithm = 1)
+}
+apply(tksce@meta.data[,grep("CCA_snn_res",colnames(tksce@meta.data))],2,table)
+p1_dim=plot_grid(ncol = 3, 
+                 DimPlot(tksce, reduction = "umap",group.by = "CCA_snn_res.0.01") + ggtitle("louvain_0.01")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.05") + ggtitle("louvain_0.05")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.1") + ggtitle("louvain_0.1")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.2") + ggtitle("louvain_0.2")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.3") + ggtitle("louvain_0.3")+theme(aspect.ratio = 1)
+)
+ggsave(plot=p1_dim, filename="Dimplot_diff_resolution_low.pdf",width = 18,height = 12)
+p1_dim=plot_grid(ncol = 3, 
+                 DimPlot(tksce, reduction = "umap",group.by = "CCA_snn_res.0.5") + ggtitle("louvain_0.5")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.8") + ggtitle("louvain_0.8")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.0.8") + ggtitle("louvain_1")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.1.5") + ggtitle("louvain_1.5")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.2") + ggtitle("louvain_2")+theme(aspect.ratio = 1), 
+                 DimPlot(tksce, reduction = "umap", group.by = "CCA_snn_res.3") + ggtitle("louvain_3")+theme(aspect.ratio = 1)
+)
+
+ggsave(plot=p1_dim, filename="Dimplot_diff_resolution_high.pdf",width = 18,height = 12)
+library(clustree)
+#tree
+tree=clustree(tksce@meta.data, prefix = "CCA_snn_res.")
+tree
+ggsave(plot=tree, filename="Tree_diff_resolution.pdf",width = 12,height = 12)
+
+#set resolution#### 
+sel.clust = "CCA_snn_res.1"
+tksce <- SetIdent(tksce, value = sel.clust)
+tksce@active.ident <- factor(tksce@active.ident,levels = c(0:(length(table(tksce@active.ident))-1)))
+table(tksce@active.ident) 
+tksce.markers <- FindAllMarkers(object = tksce, only.pos = TRUE, min.pct = 0.25, 
+                               thresh.use = 0.25)
+tksce.markers$delt <- tksce.markers$pct.1-tksce.markers$pct.2
+write.csv(tksce.markers,"tksce.markers.csv")
+library(dplyr) 
+top5 <- tksce.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
+DoHeatmap(tksce,top5$gene,size=3)
+ggsave(filename=paste0(sel.clust,'_tksce.markers_heatmap.pdf'),width =18,height = 12)
+genes_to_check <- top5$gene
+DotPlot(tksce, features = unique(genes_to_check),
+        assay='RNA')  + coord_flip()+scale_color_gradient2(low="blue",high="red",mid="white",midpoint = 0)
+
+
+
+####cell identification####
+
+#major_subset identification####
+celltype=data.frame(ClusterID=0:(length(table(Idents(tksce)))-1),celltype=0:(length(table(Idents(tksce)))-1)) 
+celltype[celltype$ClusterID %in% c(0,13
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(2
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(3,19
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(4
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(6
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(10
+),2]='CD8+T'
+
+celltype[celltype$ClusterID %in% c(16
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(17,20
+),2]='CD8+T'
+celltype[celltype$ClusterID %in% c(18
+),2]='CD8+T'
+
+celltype[celltype$ClusterID %in% c(9
+),2]='CD8+T'
+
+celltype[celltype$ClusterID %in% c(1
+),2]='CD4+T'
+celltype[celltype$ClusterID %in% c(5
+),2]='CD4+T'
+celltype[celltype$ClusterID %in% c(11
+),2]='CD4+T'
+celltype[celltype$ClusterID %in% c(14
+),2]='CD4+T'
+celltype[celltype$ClusterID %in% c(15
+),2]='CD4+T'
+celltype[celltype$ClusterID %in% c(21
+),2]='CD4+T'
+
+celltype[celltype$ClusterID %in% c(7
+),2]='NK'
+celltype[celltype$ClusterID %in% c(8
+),2]='NK'
+celltype[celltype$ClusterID %in% c(12
+),2]='NK'
+celltype[celltype$ClusterID %in% c(23
+),2]='NK'
+
+celltype[celltype$ClusterID %in% c(22
+),2]='Unknown'
+head(celltype)
+celltype
+table(celltype$celltype)
+tksce@meta.data$celltype = "NA"
+for(i in 1:nrow(celltype)){
+  tksce@meta.data[which(tksce@active.ident == celltype$ClusterID[i]),'celltype'] <- celltype$celltype[i]}
+table(tksce@meta.data$celltype)
+th=theme(axis.text.x = element_text(angle = 45, 
+                                    vjust = 0.5, hjust=0.5)) 
+genes_to_check = c( "KLRD1","KLRF1","FCGR3A","GNLY","NCAM1",#NK"NKG7","CD14",
+                    "CD8A","CD8B","CD3D","CD3E","CD3G","CD2","CD4"
+)
+th=theme(axis.text.x = element_text(angle = 90)) 
+DotPlot(tksce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+name="Tk_cell"
+ggsave(paste0(name,"_markers_by_celltypel.pdf"),width = 13,height =4)
+DimPlot(tksce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1)#用
+ggsave(paste0(name,"umap_resolution.pdf"),height = 6,width = 7.6)
+DimPlot(tksce, reduction = "umap", group.by = "celltypel",label = T,raster=FALSE,cols = allcolour) +theme(aspect.ratio = 1)#用
+ggsave(paste0(name,"umap_celltypel.pdf"),height = 6,width = 7.6)
+tksce$celltypel <-tksce$celltype
+genes_to_check = c("CD3D","CD3E","CD3G","CD2","CD69","CD7","CD4", "CD8A","CD8B",
+                   "TIGIT","CTLA4","TNFRSF18","TNFRSF4",#CD4Treg
+                   "FOXP3","TNFRSF4","IL2RA","TNFRSF18","CTLA4", 
+                   'TPX2','MKI67','UBE2C','TOP2A',#proliferating T cells
+                   "KLRD1","NKG7","GNLY","KLRF1","CD14","B3GNT7",#NK
+                   "CCR7","TCF7","LEF1",#Naive
+                   "IL7R","KLRB1","SLC4A10",#"RORC","LTK","ZBTB16", MAIT
+                   "PDCD1","CXCL13","LAYN","LAG3",#exhausted
+                   "TIGIT","CTLA4","LAG3","PDCD1","HAVCR2",#Inhibitory
+                   "TRDC","TRGC1",#DNT gamma delt T
+                   "CXCL13","PDCD1","BHLHE40","TOX","GNG4","IL21","CD82","TPI1","HAVCR2",#CXCL13Th
+                   "TRGV9","TRDV2",#ganmadeltT
+                   "STAT1","IFIT1","ISG15","CCR1",
+                   "GZMK","GZMA","CCL5","GZMH","PRF1","GZMB",#cytotoxic_T_cell
+                   "TNF",
+                   "CXCR6","ITGA1",
+                   "CCR7","IL2","FOXP3","LAYN","CCR6","NR4A1","GZMK","GZMH","XCL1","CTLA4","LAG3","FCGR3A","CD160","NCAM1"
+)
+genes_to_check = c("CCR7","IL2","FOXP3","LAYN","CCR6","NR4A1","CD69","GZMK","GZMH","XCL1","CTLA4","LAG3","FCGR3A","CD160"
+)
+genes_to_check = c("GZMA","GZMK","GZMH"
+)
+DotPlot(tksce, features = unique(genes_to_check),
+        assay='RNA')  + coord_flip()+scale_color_gradient2(low="blue",high="red",mid="white",midpoint = 0)
+VlnPlot(tksce, features = unique(genes_to_check),assay='RNA',stack = T)
+#tnk_subset_identification####
+celltype=data.frame(ClusterID=0:(length(table(Idents(tksce)))-1),celltype=0:(length(table(Idents(tksce)))-1)) 
+celltype[celltype$ClusterID %in% c(0
+),2]='CD8+T_c0_effector_GZMK'
+celltype[celltype$ClusterID %in% c(1
+),2]='CD8+T_c1_MAIT_CCL20'
+celltype[celltype$ClusterID %in% c(4
+),2]='CD8+T_c2_exhausted_LAG3hi'
+celltype[celltype$ClusterID %in% c(6
+),2]='CD8+T_c3_naive_CCR7'
+celltype[celltype$ClusterID %in% c(13
+),2]='CD8+T_c4_memory_ZNF683'
+celltype[celltype$ClusterID %in% c(16
+),2]='CD8+T_c5_effector_GZMB'
+celltype[celltype$ClusterID %in% c(17
+),2]='CD8+T_c6_prolif_MKI67'
+celltype[celltype$ClusterID %in% c(20
+),2]='CD8+T_c7_MAIT_SLC4A10'
+celltype[celltype$ClusterID %in% c(22
+),2]='CD8+T_c8_resident_CD69'
+celltype[celltype$ClusterID %in% c(23
+),2]='CD8+T_c9_IFNR_IFIT2'
+
+celltype[celltype$ClusterID %in% c(2
+),2]='CD4+T_c0_Tcm_ANXA1'
+celltype[celltype$ClusterID %in% c(7
+),2]='CD4+T_c1_Tcm_GPR183'
+celltype[celltype$ClusterID %in% c(12
+),2]='CD4+T_c2_Treg_FAAH2'
+celltype[celltype$ClusterID %in% c(14
+),2]='CD4+T_c3_naive_TCF7'
+celltype[celltype$ClusterID %in% c(15
+),2]='CD4+T_c4_Treg_FOXP3'
+celltype[celltype$ClusterID %in% c(19
+),2]='CD4+T_c5_helper_CXCL13'
+
+celltype[celltype$ClusterID %in% c(3
+),2]='NK_c0_CD56dimCD16hi'
+celltype[celltype$ClusterID %in% c(5
+),2]='NK_c1_CD56dimCD16lo'
+celltype[celltype$ClusterID %in% c(9
+),2]='NK_c2_CD56bright_CD16lo_CD160hi'
+celltype[celltype$ClusterID %in% c(11
+),2]='NK_c3_CD56dim_CD16hi_CD160'
+celltype[celltype$ClusterID %in% c(21
+),2]='NK_c4_CD56bright_XCL1'
+
+celltype[celltype$ClusterID %in% c(8,
+                                   10
+),2]='DNT'
+celltype[celltype$ClusterID %in% c(18
+),2]='Unknown'
+head(celltype)
+celltype
+table(celltype$celltype)
+tksce@meta.data$celltype = "NA"
+for(i in 1:nrow(celltype)){
+  tksce@meta.data[which(tksce@active.ident == celltype$ClusterID[i]),'celltype'] <- celltype$celltype[i]}
+table(tksce@meta.data$celltype)
+th=theme(axis.text.x = element_text(angle = 45, 
+                                    vjust = 0.5, hjust=0.5)) 
+genes_to_check = c("CD3D","CD3E","CD3G","CD2","CD69","CD7","CD4", "CD8A","CD8B",
+                   "TIGIT","CTLA4","TNFRSF18","TNFRSF4",#CD4Treg
+                   "FOXP3","TNFRSF4","IL2RA","TNFRSF18","CTLA4", 
+                   'TPX2','MKI67','UBE2C','TOP2A',#proliferating T cells
+                   "KLRD1","NKG7","GNLY","NCAM1","KLRF1","FCGR3A","CD14","B3GNT7",#NK
+                   "CCR7","TCF7","LEF1",#Naive
+                   "IL7R","KLRB1","SLC4A10","CCL20",#"RORC","LTK","ZBTB16", MAIT
+                   "PDCD1","CXCL13","LAYN","LAG3",#exhausted
+                   "TIGIT","CTLA4","LAG3","PDCD1","HAVCR2",#Inhibitory
+                   "TRDC","TRGC1",#DNT gamma delt T
+                   "GZMK","GZMA","CCL5","GZMH","GZMB","PRF1",#cytotoxic_T_cell
+                   "TNF",
+                   "CXCR6","ITGA1","CD45RA","CSF1","CD274"
+                   
+                   
+)
+
+th=theme(axis.text.x = element_text(angle = 90)) 
+DotPlot(tksce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+name="Tnk_cell"
+ggsave(paste0(name,"_markers_by_celltype.pdf"),width = 13,height =5)
+#
+tksce$celltypes <-tksce$celltype
+
+DimPlot(tksce, reduction = "umap", group.by = sel.clust,label = T,raster=FALSE) +theme(aspect.ratio = 1) |
+    DimPlot(tksce, reduction = "umap", group.by = "celltype",label = T,raster=FALSE) +theme(aspect.ratio = 1)
+
+DimPlot(tksce, reduction = "umap", group.by = sel.clust,label = T) +theme(aspect.ratio = 1)
+ggsave(paste0(name,"umap_resolution.pdf"),height = 6,width = 7.6)
+tksce$celltypes <- tksce$celltype
+DimPlot(tksce, reduction = "umap", group.by = "celltypes",label = T,raster=FALSE,cols = allcolour,
+        ) +theme(aspect.ratio = 1)
+ggsave(paste0(name,"umap_celltypes.pdf"),height = 7,width = 16)
+tksce$celltypes <- tksce$celltype
+
+#unknown removal####
+table(tksce$celltype)
+Idents(tksce) <- "celltype"
+save(tksce,file="brefore_filter_tksce.Rdata")
+load("brefore_filter_tksce.Rdata")
+table(tksce$celltype)
+tksce$celltype <- as.character(tksce$celltype)
+tksce <- subset(tksce, cells = colnames(tksce)[which(!tksce$celltype %in% c('Unknown'))])
+table(tksce$celltype)
+
+#DEGs####
+table(tksce@active.ident) 
+tksce.markers2 <- FindAllMarkers(object = tksce, only.pos = TRUE, min.pct = 0.25, 
+                               thresh.use = 0.25)
+tksce.markers2$delt <- tksce.markers2$pct.1-tksce.markers2$pct.2
+write.csv(tksce.markers2,"tksce.markers2.csv")
+#DEGS_at celltypel level####
+Idents(tksce) <- "celltypel"
+table(tksce@active.ident) 
+tksce.markers2 <- FindAllMarkers(object = tksce, only.pos = TRUE, min.pct = 0.25, 
+                                 thresh.use = 0.25)
+tksce.markers2$delt <- tksce.markers2$pct.1-tksce.markers2$pct.2
+write.csv(tksce.markers2,"tksce.celltypel.markers.csv")
+
+#location_preference####
+library("sscVis")
+# #sscVis安装
+# devtools::install_github("Japrin/sscVis")
+# install.packages(c("cpp11", "labeling", "vctrs", "rlang", "gtable", "cli", "ggplot2", "Rcpp",
+#                    "fs", "ps", "processx", "jsonlite", "digest", "MatrixModels", "quantreg",
+#                    "dplyr", "purrr", "mvtnorm", "viridis", "matrixStats"))
+# BiocManager::install("impute")
+library("data.table")
+library("grid")
+library("cowplot")
+library("ggrepel")
+library("readr")
+library("plyr")
+library("ggpubr")
+library("ggplot2")
+#define formular
+do.tissueDist <- function(cellInfo.tb = cellInfo.tb,
+                          meta.cluster = cellInfo.tb$meta.cluster,
+                          colname.patient = "patient",
+                          loc = cellInfo.tb$loc,
+                          out.prefix,
+                          pdf.width=3,
+                          pdf.height=5,
+                          verbose=0){
+  ##input data 
+  library(data.table)
+  dir.create(dirname(out.prefix),F,T)
+  
+  cellInfo.tb = data.table(cellInfo.tb)
+  cellInfo.tb$meta.cluster = as.character(meta.cluster)
+  
+  if(is.factor(loc)){
+    cellInfo.tb$loc = loc
+  }else{cellInfo.tb$loc = as.factor(loc)}
+  
+  loc.avai.vec <- levels(cellInfo.tb[["loc"]])
+  count.dist <- unclass(cellInfo.tb[,table(meta.cluster,loc)])[,loc.avai.vec]
+  freq.dist <- sweep(count.dist,1,rowSums(count.dist),"/")
+  freq.dist.bin <- floor(freq.dist * 100 / 10)
+  print(freq.dist.bin)
+  
+  {
+    count.dist.melt.ext.tb <- test.dist.table(count.dist)
+    p.dist.tb <- dcast(count.dist.melt.ext.tb,rid~cid,value.var="p.value")
+    OR.dist.tb <- dcast(count.dist.melt.ext.tb,rid~cid,value.var="OR")
+    OR.dist.mtx <- as.matrix(OR.dist.tb[,-1])
+    rownames(OR.dist.mtx) <- OR.dist.tb[[1]]
+  }
+  
+  sscVis::plotMatrix.simple(OR.dist.mtx,
+                            out.prefix=sprintf("%s.OR.dist",out.prefix),
+                            show.number=F,
+                            waterfall.row=T,par.warterfall = list(score.alpha = 2,do.norm=T),
+                            exp.name=expression(italic(OR)),
+                            z.hi=4,
+                            palatte=viridis::viridis(7),
+                            pdf.width = 4, pdf.height = pdf.height)
+  if(verbose==1){
+    return(list("count.dist.melt.ext.tb"=count.dist.melt.ext.tb,
+                "p.dist.tb"=p.dist.tb,
+                "OR.dist.tb"=OR.dist.tb,
+                "OR.dist.mtx"=OR.dist.mtx))
+  }else{
+    return(OR.dist.mtx)
+  }
+}
+
+test.dist.table <- function(count.dist,min.rowSum=0)
+{
+  count.dist <- count.dist[rowSums(count.dist)>=min.rowSum,,drop=F]
+  sum.col <- colSums(count.dist)
+  sum.row <- rowSums(count.dist)
+  count.dist.tb <- as.data.frame(count.dist)
+  setDT(count.dist.tb,keep.rownames=T)
+  count.dist.melt.tb <- melt(count.dist.tb,id.vars="rn")
+  colnames(count.dist.melt.tb) <- c("rid","cid","count")
+  count.dist.melt.ext.tb <- as.data.table(ldply(seq_len(nrow(count.dist.melt.tb)), function(i){
+    this.row <- count.dist.melt.tb$rid[i]
+    this.col <- count.dist.melt.tb$cid[i]
+    this.c <- count.dist.melt.tb$count[i]
+    other.col.c <- sum.col[this.col]-this.c
+    this.m <- matrix(c(this.c,
+                       sum.row[this.row]-this.c,
+                       other.col.c,
+                       sum(sum.col)-sum.row[this.row]-other.col.c),
+                     ncol=2)
+    res.test <- fisher.test(this.m)
+    data.frame(rid=this.row,
+               cid=this.col,
+               p.value=res.test$p.value,
+               OR=res.test$estimate)
+  }))
+  count.dist.melt.ext.tb <- merge(count.dist.melt.tb,count.dist.melt.ext.tb,
+                                  by=c("rid","cid"))
+  count.dist.melt.ext.tb[,adj.p.value:=p.adjust(p.value,"BH")]
+  return(count.dist.melt.ext.tb)
+}
+
+
+#set outfiles
+out.prefix <- "D:\\leadtest\\immune\\tnk"
+
+tksce$meta.cluster <- tksce$celltype
+tksce$stype <- "cd8t"
+tksce$loc <- tksce$type
+table(tksce$stype)
+meta.tb <- tksce@meta.data
+
+OR.CD8.list <- do.tissueDist(cellInfo.tb=meta.tb,
+                             out.prefix=sprintf("%s.STARTRAC.dist.T.baseline.CD8",out.prefix),
+                             pdf.width=4,pdf.height=6,verbose=1)
+
+
+OR.CD8.list$OR.dist.mtx
+OR.CD8.list$p.dist.tb
+#
+dat <- OR.CD8.list$OR.dist.mtx
+dat_p <- as.data.frame(OR.CD8.list$p.dist.tb)
+rownames(dat_p) <- dat_p[,1]
+dat_p <- dat_p[,-1]
+#
+library(pheatmap)
+pheatmap(dat, cellwidth = 20, cellheight = 20, 
+         main = "heatmap"#filename = "heatmap1.png"
+)
+my_colors <- c("red", "green", "blue", "yellow")
+my_palette <- colorRampPalette(c("blue", "white", "red"))
+# 
+pheatmap(dat, cellwidth = 20, cellheight = 20,angle = 0,color = colorRampPalette(c("white","red","#71151A"))(100),cluster_rows = F,
+         display_numbers = matrix(ifelse(abs(dat_p) <0.05, "*", ""),nrow(dat_p)),
+         filename = "OR2.pdf"
+)
+pheatmap(dat, color = my_colors)
+pheatmap(dat, cellwidth = 20, cellheight = 20,angle = 0,color = colorRampPalette(c("white","red","black"))(100),cluster_rows = F,
+         display_numbers = matrix(ifelse(abs(dat_p) <0.05, "*", ""),nrow(dat_p)),
+         filename = "OR3.pdf"
+)
+pheatmap(dat, cellwidth = 20, cellheight = 20,
+         angle = 0,
+         color = colorRampPalette(c("#F6EFF1","#CEA2B0","#AB677A","#8B3951","#6B1830","#490517"))(100),
+         cluster_rows = F,
+         display_numbers = matrix(ifelse(abs(dat_p) <0.05, "*", ""),nrow(dat_p)),
+         filename = "OR3.pdf"
+)
+
+#marker_heatmap#####
+
+#gene list
+genes_to_check = c("CD3D","CD3E", "CD2","CD7",
+                   "PTPRC","TYROBP","FCER1G","NCAM1","FCGR3A","CD160","XCL1",
+                   "CD4", "CD8A","CD8B",
+                   "TRGV9","TRDV2",#ganmadeltT
+                   "TIGIT","CTLA4","TNFRSF18","TNFRSF4","LAG3","HAVCR2","PDCD1",#exhausted
+                   'TPX2','MKI67','UBE2C','TOP2A',#proliferating T cells
+                   "CCR7","TCF7","LEF1",#Naive
+                   "KLRD1","NKG7","GNLY","NCAM1","KLRF1",#NK
+                   #"FASLG","FAS",
+                   #"TRAV1","TRAV2",
+                   "FOXP3","IL2RA","SAT1","IKZF2",#Treg
+                   #"CXCR5","ICOS","PDCD1","IL21","BCL6",#tfh
+                   "CD69","RUNX3","NR4A1",
+                   "GZMK","GZMA","GZMB","CCL5","PRF1","IFNG",#cytotoxic_T_cell
+                   "IL7R","KLRB1","SLC4A10",#MAIT
+                   "CXCL13","PDCD1","BHLHE40","TOX","GNG4","IL21","CD82","TPI1","HAVCR2",#CXCL13Th
+                   "S100A4","GPR183","PASK","LTB","CD44","IFNG",#memoryCD4
+                   "IFIT2", "IFIT3", "DDX58","ISG15",
+                   "TNF"
+                   
+                   
+)
+library(pheatmap) 
+p <- DotPlot(tksce, features = unique(genes_to_check),
+             assay='RNA' ,group.by = 'celltype')+coord_flip()+th+
+  scale_color_gradient2(low="#E2AF5F",high="#6C285D",mid="white",midpoint = 0)
+p
+dat <-p$data[3:5]
+colnames(dat) <- c("Gene","variable","value")
+#长数据变宽数据
+library(reshape2)
+dat1 <-dcast(dat,Gene~variable)
+rownames(dat1) <- dat1$Gene
+dat1 <- dat1[,-1]
+bk <- c(seq(-3, 3,by = 0.01))
+
+pheatmap(dat1,
+         cluster_cols = F, cluster_rows = F, scale = "none",
+         display_numbers = F,
+         border_color = "white",
+         gaps_row = c(3,11,14,16,20,23,27,30,34,38,41,47,50,57,62,66),#对想要分隔的基因
+         gaps_col = c(6,16),#对象要分隔的细胞群
+         color = colorRampPalette(c("#24ABAE","white","#CF254A"))(length(bk)),
+         width = 5,
+         height = 13,
+         filename = "tcell_heatmap.pdf"
+)
+
+
+
+#MAIT_cell_markers####
+Idents(t8sce) <- "celltype" 
+markers <- FindMarkers(t8sce, ident.1 = c("CD8+T_c1_MAIT_CCL20","CD8+T_c7_MAIT_SLC4A10"), 
+                       ident.2 = c("CD8+T_c0_effector_GZMK","CD8+T_c2_exhausted_LAG3hi","CD8+T_c3_naive_CCR7",
+                                   "CD8+T_c4_memory_ZNF683","CD8+T_c5_effector_GZMB","CD8+T_c6_prolif_MKI67","CD8+T_c8_resident_CD69",
+                                   "CD8+T_c9_IFNR_IFIT2"), only.pos = T)
+write.csv(markers,"t8sce_markers.csv")
+
+#save_files#### 
+save(tksce,file="tksce_marker.Rdata")
+setwd("D:\\leadtest\\immune\\tnk")
+load("tksce_marker.Rdata")
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+
