@@ -245,18 +245,18 @@ ggplot(Cellratio, aes(x = type, y = Freq))+
         panel.grid.minor = element_blank())+
   scale_y_continuous(labels = scales::percent
                      #limits = c(0, max(Cellratio$Freq)+0.1)
-  )+#根据p值的范围调整
-  geom_point(data = Cellratio, aes(x = type, y = Freq, fill=patient), #patient_id改成样本号
+  )+
+  geom_point(data = Cellratio, aes(x = type, y = Freq, fill=patient), 
              size = 5, shape = 21,stroke = 0.5,alpha = 0.5)+
   facet_wrap(~ celltype,scales = "free",ncol = 4) + 
   stat_compare_means(aes(group = type),comparisons = my_comparisons,
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
+                     method = "wilcox.test",# wilcox.test or t.test
                      #ref.group = "HCC",
                      size = 5,
                      hide.ns =T,
                      label = "p.signif",
                      #label.y=max(Cellratio$Freq),
-                     #label.x = 1.5,#两个名称之间
+                     #label.x = 1.5, 
                      symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
                                       symbols = c("***", "**", "*", "")
                      )
@@ -284,14 +284,12 @@ ggboxplot(Cellratio, x = "type", y = "Freq",
              shape = 21,
              stroke = 0.5,alpha = 0.5)+
   stat_compare_means(comparisons = my_comparisons,
-                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
+                     method = "wilcox.test",
                      label = "p.signif",
                      symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
                                       symbols = c("***", "**", "*", "")))+ggtitle("Cell type")+
   theme(plot.title = element_text(hjust = 0.5))
-ggsave("immune_prop_by_type2.pdf",width = 8,height = 6)#用
-
-
+ggsave("immune_prop_by_type2.pdf",width = 8,height = 6)#
 
 #sce$scelltype <- sce$celltype
 table(masce$celltype)
@@ -374,10 +372,10 @@ dev.off()
 
 #cell_proportion1####
 Idents(masce) <- masce$celltype
-table(masce$patient_id)#查看各组细胞数
+table(masce$patient_id)
 prop.table(table(Idents(masce)))
-table(Idents(masce), masce$patient_id)#各组不同细胞群细胞数
-Cellratio <- prop.table(table(Idents(masce), masce$patient_id), margin = 2)#计算各组样本不同细胞群比例
+table(Idents(masce), masce$patient_id)
+Cellratio <- prop.table(table(Idents(masce), masce$patient_id), margin = 2)
 Cellratio <- as.data.frame(Cellratio)
 colnames(Cellratio)[1] <- "Cell_type"
 allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
@@ -396,10 +394,10 @@ ggsave(paste0(name,"propotion_of_all_celltype_by_patient_id.pdf"),width = 8,heig
 
 #cell_proportion2####
 Idents(masce) <- masce$celltype
-table(masce$type)#查看各组细胞数
+table(masce$type)
 prop.table(table(Idents(masce)))
-table(Idents(masce), masce$type)#各组不同细胞群细胞数
-Cellratio <- prop.table(table(Idents(masce), masce$type), margin = 2)#计算各组样本不同细胞群比例
+table(Idents(masce), masce$type)
+Cellratio <- prop.table(table(Idents(masce), masce$type), margin = 2)
 Cellratio <- as.data.frame(Cellratio)
 colnames(Cellratio)[1] <- "Cell_type"
 allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
@@ -526,7 +524,6 @@ VlnPlot(masce,features = 'M2_Macrophage_Polarization',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "M2_Macrophage_Polarization",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -659,7 +656,6 @@ VlnPlot(masce,features = 'M2_signature',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "M2_signature",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -834,7 +830,6 @@ VlnPlot(masce,features = 'Phagocytosis_score',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "Phagocytosis_score",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -871,7 +866,7 @@ ggboxplot(P$data,x = "ident",y = "Phagocytosis_score",color = "ident")+ theme(ax
   )
 ggsave("Phagocytosis_score_box2.pdf",width = 3,height = 5)
 
-####糖酵解,缺氧信号通路打分####
+####scoring_par2####
 library(Seurat)
 library(msigdbr)
 library(GSVA)
@@ -887,7 +882,7 @@ genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.fr
 genesets <- split(genesets$gene_symbol, genesets$gs_name)
 cd_features <-  list(genesets[["HALLMARK_HYPOXIA"]])
 
-#修改变量名称
+#
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'HYPOXIA'
@@ -909,7 +904,6 @@ VlnPlot(masce,features = 'HYPOXIA',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("Mac_c2_SPP1", "Mac_c1_IL1B"),
                        c("Mac_c2_SPP1","Mac_c3_MKI67"),
                        c("Mac_c0_C1QA", "Mac_c2_SPP1"),
@@ -943,7 +937,8 @@ ggboxplot(P$data,x = "ident",y = "HYPOXIA",color = "ident",palette =c("#24ABAE",
                                       symbols = c("***", "**", "*", "ns"))
   )
 ggsave("HYPOXIA_box.pdf",width = 2,height = 4)
-#Stress打分####
+
+#Stress_gene_list####
 a <-"FOS
 ATF3
 NR4A1
@@ -997,13 +992,6 @@ EFNA1
 "
 cd_features <- strsplit(a,split = "\n") 
 
-
-
-
-
-
-
-#修改变量名称
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'Stress'
@@ -1024,7 +1012,7 @@ VlnPlot(masce,features = 'Stress',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
+#
 my_comparisons = list( 
   c("Mac_c0_JUN","Mac_c1_CXCL10"),
   c("Mac_c0_JUN", "Mac_c2_APOC1"),
@@ -1040,8 +1028,6 @@ ggboxplot(P$data,x = "ident",y = "Stress",color = "ident")+ theme(axis.text.x = 
   )
 ggsave("Stress_box2.pdf",width = 2,height = 4)
 
-
-
 #Stress
 library(ggpubr)
 library(ggplot2)
@@ -1055,7 +1041,6 @@ VlnPlot(masce,features = 'Stress',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "Stress",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -1064,12 +1049,7 @@ ggboxplot(P$data,x = "ident",y = "Stress",color = "ident",palette =c("#24ABAE", 
   )
 ggsave("Stress_box.pdf",width = 2,height = 4)
 
-
-
-
-
-
-##ANGIOGENESIS信号通路打分####
+##ANGIOGENESIS####
 library(Seurat)
 library(msigdbr)
 library(GSVA)
@@ -1084,7 +1064,7 @@ genesets <- split(genesets$gene_symbol, genesets$gs_name)
 cd_features <-  list(genesets[["HALLMARK_ANGIOGENESIS"]])
 
 
-#修改变量名称
+
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'ANGIOGENESIS'
@@ -1104,8 +1084,7 @@ VlnPlot(masce,features = 'ANGIOGENESIS',
         pt.size = 0, adjust = 2,
         group.by = "celltype")
 table(P$data[,2])
-
-#箱型图画法
+#
 my_comparisons = list( c("Mac_c6_SPP1", "Mac_c5_MKI67"),
                        c("Mac_c6_SPP1", "Mac_c4_FOLR2"),
                        c("Mac_c6_SPP1", "Mac_c3_IL1B"),
@@ -1120,8 +1099,6 @@ ggboxplot(P$data,x = "ident",y = "ANGIOGENESIS",color = "ident")+ theme(axis.tex
                                       symbols = c("***", "**", "*", "ns"))
   )
 ggsave("ANGIOGENESIS_box2.pdf",width = 3,height = 5)
-
-
 
 #ANGIOGENESIS
 library(ggpubr)
@@ -1146,7 +1123,7 @@ ggboxplot(P$data,x = "ident",y = "ANGIOGENESIS",color = "ident",palette =c("#24A
 ggsave("ANGIOGENESIS_box.pdf",width = 2,height = 4)
 
 
-####GLYCOLYSIS,HYPOXIA通路打分####
+####GLYCOLYSIS####
 library(Seurat)
 library(msigdbr)
 library(GSVA)
@@ -1159,13 +1136,10 @@ genesets <- msigdbr(species = "Homo sapiens", category = "H")
 genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
 genesets <- split(genesets$gene_symbol, genesets$gs_name)
 cd_features <-  list(genesets[["HALLMARK_GLYCOLYSIS"]])
-
-
-#修改变量名称
+#
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'GLYCOLYSIS'
-
 VlnPlot(masce,features = 'GLYCOLYSIS',pt.size = 0, adjust = 2,group.by = "type")
 VlnPlot(masce,features = 'GLYCOLYSIS',pt.size = 0, adjust = 2,group.by = "celltype")
 
@@ -1182,7 +1156,6 @@ VlnPlot(masce,features = 'GLYCOLYSIS',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
 my_comparisons = list( c("Mac_c2_SPP1", "Mac_c1_IL1B"),
                        c("Mac_c2_SPP1","Mac_c3_MKI67"),
                        c("Mac_c0_C1QA", "Mac_c2_SPP1"),
@@ -1194,8 +1167,6 @@ ggboxplot(P$data,x = "ident",y = "GLYCOLYSIS",color = "ident")+ theme(axis.text.
                                       symbols = c("***", "**", "*", "ns"))
   )
 ggsave("GLYCOLYSIS_box2.pdf",width = 2,height = 4)
-
-
 
 #GLYCOLYSIS
 library(ggpubr)
@@ -1210,7 +1181,7 @@ VlnPlot(masce,features = 'GLYCOLYSIS',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
+#
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "GLYCOLYSIS",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -1219,7 +1190,7 @@ ggboxplot(P$data,x = "ident",y = "GLYCOLYSIS",color = "ident",palette =c("#24ABA
   )
 ggsave("GLYCOLYSIS_box.pdf",width = 2,height = 4)
 
-#FATTY_ACID_METABOLISM打分####
+#FATTY_ACID_METABOLISM####
 library(Seurat)
 library(msigdbr)
 library(GSVA)
@@ -1234,8 +1205,7 @@ genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.fr
 genesets <- split(genesets$gene_symbol, genesets$gs_name)
 cd_features <-  list(genesets[["KEGG_FATTY_ACID_METABOLISM"]])
 
-
-#修改变量名称
+#
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'FATTY_ACID_METABOLISM'
@@ -1256,7 +1226,7 @@ VlnPlot(masce,features = 'FATTY_ACID_METABOLISM',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
+#
 my_comparisons = list( c("Mac_c2_SPP1", "Mac_c1_IL1B"),
                        c("Mac_c2_SPP1","Mac_c3_MKI67"),
                        c("Mac_c0_C1QA", "Mac_c2_SPP1"),
@@ -1284,7 +1254,7 @@ VlnPlot(masce,features = 'FATTY_ACID_METABOLISM',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
+#
 my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
 ggboxplot(P$data,x = "ident",y = "FATTY_ACID_METABOLISM",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
@@ -1294,25 +1264,16 @@ ggboxplot(P$data,x = "ident",y = "FATTY_ACID_METABOLISM",color = "ident",palette
 ggsave("FATTY_ACID_METABOLISM_box.pdf",width = 2,height = 4)
 
 
-
-
-
-
 #monocle#####
 DefaultAssay(masce) <- "RNA"
 library(monocle)
-#提取表型信息--细胞信息(建议载入细胞的聚类或者细胞类型鉴定信息、实验条件等信息)
 expr_matrix <- as(as.matrix(masce@assays$RNA@counts), 'sparseMatrix')
-##提取表型信息到p_data(phenotype_data)里面 
 p_data <- masce@meta.data 
 Idents(masce) <- masce$celltype
 table(masce@active.ident)
-p_data$celltype <- masce@active.ident  ##整合每个细胞的细胞鉴定信息到p_data里面。如果已经添加则不必重复添加
-##提取基因信息 如生物类型、gc含量等
+p_data$celltype <- masce@active.ident 
 f_data <- data.frame(gene_short_name = row.names(masce),row.names = row.names(masce))
-##expr_matrix的行数与f_data的行数相同(gene number), expr_matrix的列数与p_data的行数相同(cell number)
 
-#构建CDS对象
 pd <- new('AnnotatedDataFrame', data = p_data) 
 fd <- new('AnnotatedDataFrame', data = f_data)
 #将p_data和f_data从data.frame转换AnnotatedDataFrame对象。
@@ -1323,79 +1284,65 @@ cds <- newCellDataSet(expr_matrix,
                       expressionFamily = negbinomial.size())
 cds <- estimateSizeFactors(cds)
 cds <- estimateDispersions(cds)
-# 过滤低于1%细胞中检出的基因，最低表达阈值为0.1
 cds <- detectGenes(cds, min_expr = 0.1) #这一操作会在fData(cds)中添加一列num_cells_expressed
 print(head(fData(cds)))#此时有13714个基因
 expressed_genes <- row.names(subset(fData(cds),num_cells_expressed >= 10)) #过滤掉在小于10个细胞中表达的基因，还剩11095个基因。
 
-##使用seurat选择的高变基因
+#expressed_genes for other choices
 express_genes <- VariableFeatures(masce)
 cds <- setOrderingFilter(cds, express_genes)
 plot_ordering_genes(cds)
-##使用clusters差异表达基因
+#
 Idents(masce) <- "celltype"
 deg.cluster <- FindAllMarkers(masce)
 express_genes <- subset(deg.cluster,p_val_adj<0.05)$gene
 cds <- setOrderingFilter(cds, express_genes)
 plot_ordering_genes(cds)
-##使用monocle选择的高变基因
+#
 disp_table <- dispersionTable(cds)
 express_genes <- subset(disp_table, mean_expression >= 0.1 & dispersion_empirical >= 1 * dispersion_fit)$gene_id
 cds <- setOrderingFilter(cds, express_genes)
 plot_ordering_genes(cds)
 
-#这一步输入的expressed_genes来自于步骤4。
-#后续分析使用的是该方法
-#也可输入seurat筛选出的高变基因：expressed_genes <- VariableFeatures(masce) 
+#
 diff <- differentialGeneTest(cds[express_genes,],fullModelFormulaStr="~celltype",cores=1)
 diff <- differentialGeneTest(cds[expressed_genes,],fullModelFormulaStr="~celltype",cores=1)
 #diff <- differentialGeneTest(cds[expressed_genes,],fullModelFormulaStr="~RNA_snn_res.2",cores=1)
-#~后面是表示对谁做差异分析的变量，理论上可以为p_data的任意列名
+#
 head(diff)
-
-##差异表达基因作为轨迹构建的基因,差异基因的选择标准是qval<0.01,
-#decreasing=F表示按数值增加排序 选择 FDR < 0.01 的基因作为差异基因
-deg <- subset(diff, qval < 0.01) #选出2829个基因
+#
+deg <- subset(diff, qval < 0.01) #
 deg <- deg[order(deg$qval,decreasing=F),]
 head(deg)
 
-##差异基因的结果文件保存
+#
 write.csv(deg,file="train.monocle.DEG.csv")
 
-## 轨迹构建基因可视化
+#
 ordergene <- rownames(deg) 
 cds <- setOrderingFilter(cds, ordergene)  
 table(cds@featureData@data[["use_for_ordering"]])
-#这一步是很重要的，在我们得到想要的基因列表后，我们需要使用setOrderingFilter将它嵌入cds对象，后续的一系列操作都要依赖于这个list。
-#setOrderingFilter之后，这些基因被储存在cds@featureData@data[["use_for_ordering"]]，可以通过table(cds@featureData@data[["use_for_ordering"]])查看
 plot_ordering_genes(cds)
 ggsave("train.order.genes.pdf")
-##选择的用于排序的基因数目一般在2000左右比较合适
-#如果基因太多的话，也可以选择top基因
+#
 ordergene <- row.names(deg)[order(deg$qval)][1:2000]
-#ordergene <- row.names(deg)[order(deg$qval)]
-#一旦细胞有序排列，我们就可以在降维空间中可视化轨迹，然后使用反向图嵌入（DDRTree）算法对数据进行降维。
+#
 cds <- reduceDimension(cds, max_components = 2,
                        method = 'DDRTree',cores =4
                        #,num_dim=3
                        #,residualModelFormulaStr = "~patient_id" #residualModelFormulaStr减少其他因素的影响，比如不同样本、不同批次
 )
-##将表达数据投射到更低的维度空间，通过机器学习描述细胞如何从
-#一种状态过渡到另一种状态的轨迹。
-#假设轨迹具有树状结构，一端是"根"，另一端是"叶"。尽可能地将最佳树与数据匹配起来。这项任务被称为"歧管学习”，
-#在生物过程的开始阶段，细胞从根部开始，沿着主干前进，直到到达第一个分支(如果有的话)。然后，细胞必须选择一条路径，沿着树走得越来越远，直到到达一片叶子。一个细胞的伪时间值是它回到根的距离。
-#根据order gene的表达趋势，将细胞排序并完成轨迹构建
+#
 memory.limit(1000000000)
 gc()
 cds <- orderCells(cds)
-#使用root_state参数可以设置拟时间轴的根，如下面的拟时间着色图中可以看出，左边是根。根据state图可以看出，根是State1，若要想把另一端设为根，可以按如下操作
+
 save(cds,file="cds.Rdata")
 load("cds.Rdata")
 cds <- orderCells(cds, root_state = 10)
-cds <- orderCells(cds, num_paths=2)#把State5设成拟时间轴的起始点
+cds <- orderCells(cds, num_paths=2)#
 
 gc()
-#用celltype差异基因做的训练
 plot_cell_trajectory(cds,color_by="Pseudotime", size=1,show_backbone=TRUE) +
   theme(aspect.ratio = 1)+ scale_color_gradientn(colors = c("#24ABAE","#E8BD27","#CF254A"))+
   theme(aspect.ratio = 1)
@@ -1437,7 +1384,7 @@ cds@phenoData@data$Stress <- masce$Stress
 plot_cell_trajectory(cds,color_by="Stress", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
 ggsave("train_Stress_sig.pdf",height = 6,width = 6)
 
-#画分面图
+#
 plot_cell_trajectory(cds, color_by = "State") +theme(aspect.ratio = 1)+ facet_wrap("~State", nrow = 1)
 ggsave("monocle2_state_split.pdf",height = 6,width = 30)
 plot_cell_trajectory(cds, color_by = "celltype")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+ scale_color_manual(values = colour)
@@ -1467,7 +1414,7 @@ plot_cell_trajectory(cds, color_by = "Phagocytosis_score")+theme(aspect.ratio = 
 ggsave("monocle2_Phagocytosis_score_type.pdf",height = 6,width = 18)
 plot_cell_trajectory(cds, color_by = "Phagocytosis_score")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
 ggsave("monocle2_Phagocytosis_score_celltype.pdf",height = 6,width = 24)
-#pseudotime密度图####
+#pseudotime_density####
 library(Seurat)
 library(purrr)
 library(dplyr)
@@ -1477,7 +1424,7 @@ library(ggridges)
 library(RColorBrewer)
 library(viridis)
 RidgePlot(masce, features = "TREM2", fill.by = 'celltype')
-#这一部分的配色可以直接对接ggsci，也以使用scale_color_manaual()
+#
 library(ggsci)
 p1=plot_cell_trajectory(cds, color_by = "celltype")  + scale_color_npg() 
 p2=plot_cell_trajectory(cds, color_by = "State")  + scale_color_nejm()
@@ -1489,7 +1436,7 @@ colour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","
          "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
          "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
          "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
-#觉得不好看可以化成树形图
+#
 p1 <- plot_cell_trajectory(cds, x = 1, y = 2, color_by = "celltype") + 
   theme(legend.position='none',panel.border = element_blank()) + #去掉第一个的legend
   scale_color_manual(values = colour) 
@@ -1509,13 +1456,12 @@ p4 <- plot_complex_cell_trajectory(cds, x = 1, y = 2,
 p3|p4
 
 p2|p4
-#还可以画沿着时间轨迹的细胞密度图
+#
 library(ggpubr)
-df <- pData(cds) #这里可以查看psudotime的信息
+df <- pData(cds) 
 table(df$State,df$celltype)
 table(df$State,df$type)
-## pData(cds)取出的是cds对象中cds@phenoData@data的内容
-
+#
 df$celltype <- factor(df$celltype,levels =c("Mac_c4_FOLR2","Mac_c3_IL1B","Mac_c0_JUN","Mac_c1_CXCL10", "Mac_c6_SPP1","Mac_c2_APOC1","Mac_c5_MKI67") )
 ggplot(df, aes(x = Pseudotime, y = type, fill = type)) +
   geom_density_ridges(alpha = 0.5) +
@@ -1531,14 +1477,11 @@ ggplot(df, aes(x = Pseudotime, y = celltype, fill = celltype)) +
   scale_color_viridis_d()
 ggsave("density_celltype.pdf",height = 4,width = 4)
 
-
-
-
 ggplot(df, aes(Pseudotime, colour = celltype, fill=celltype)) +
   geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()
 ggsave("waveplot_celltype.pdf",height = 6,width = 8)
-require(viridis)#色彩调整的R包
-require(tidyr)#数据清理的R包
+require(viridis)#
+require(tidyr)#
 library(ggthemes)
 library(ggplot2)
 library(hrbrthemes)
@@ -1557,8 +1500,6 @@ ggplot(df,aes(x=Pseudotime,group=celltype,fill=celltype))+
   scale_fill_viridis(discrete = T,alpha = 0.3)+
   scale_color_viridis_d()
 
-
-
 ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
   geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()
 ggsave("waveplot_type.pdf",height = 6,width = 8)
@@ -1575,11 +1516,6 @@ ggplot(df,aes(x=Pseudotime,group=type,fill=type))+
   theme_ipsum()+
   scale_fill_viridis(discrete = T,alpha = 0.3)+
   scale_color_viridis_d()
-
-
-
-
-
 
 #手动设置颜色 
 ClusterName_color_panel <- c(
@@ -1609,112 +1545,13 @@ ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
   scale_color_manual(name = "", values = ClusterName_color_panel)+
   theme(aspect.ratio = 1) 
 ggsave("type_wave_color.pdf",width = 6,height = 6)
-#出的图黑色的点表示用来构建轨迹的差异基因，灰色表示背景基因。红色的线是根据第2步计算的基因表达大小和离散度分布的趋势(可以看到，找到的基因属于离散度比较高的基因)
-#比如对State7的细胞感兴趣
-pdata <- Biobase::pData(cds)
-s.cells <- subset(pdata, State=="7") %>% rownames()
-save(s.cells, file = "Monocle_state7.rda")
-#保存结果
-write.csv(pData(cds), "pseudotime.csv")
-save(cds, file = "cds.rda")
-
-##选择前4个top基因并将其对象取出
-keygenes <- c( "CD3D","CD3E","PTPRC","CD8A","CD4","TYROBP","FCER1G",
-               "HBA2","HBA1","ALAS2","SNCA",#erythrocyte
-               "MKI67","TOP2A","STMN1","TUBB","HMGB2", #proliferating T cells
-               "CCR7","TCF7","LEF1","SELL",#CD8T Naive 
-               "GZMK",#cd8 GZMK,
-               "GZMB",#CD8T GZMB
-               "FOXP3","TIGIT","CTLA4","TNFRSF18"#CD4Treg
-               
-)
-keygenes <- c( "CD3D","CD3E","PTPRC","CD8A","CD4","TYROBP","FCER1G",
-               "HBA2","HBA1","ALAS2","SNCA",#erythrocyte
-               "MKI67","TOP2A","STMN1","TUBB","HMGB2", #proliferating T cells
-               "CCR7","TCF7","LEF1","SELL",#CD8T Naive 
-               "GZMK",#cd8 GZMK,
-               "GZMB",#CD8T GZMB
-               "FOXP3","TIGIT","CTLA4","TNFRSF18"#CD4Treg
-)
-
-keygenes <- c( "MKI67","TOP2A","STMN1","TUBB","HMGB2" #proliferating T cells
-)
-keygenes <- c( "FOXP3","TIGIT","CTLA4","TNFRSF18"#CD4Treg
-)
-keygenes <- c( "CCR7","TCF7","LEF1","SELL"#CD8T Naive 
-)
-keygenes <- c( 
-  "MKI67","TOP2A","STMN1","TUBB","HMGB2" #proliferating T cells
-)
-keygenes <- c( 
-  "MKI67","RRM2","HMGN2" #cycling T cells 樊嘉
-)
-
-keygenes <- c( 
-  "MRC1","SPP1","HIF1A","MKI67","MRC1","SIRPA","VEGFB","MERTK","C1QA"#cytotoxic markers
-)
-plot_genes_in_pseudotime(cds[keygenes,], color_by = "Pseudotime")
-ggsave("gene_psedotime_plot.pdf",width = 4,height = 8)
-keygenes <- head(ordergene,4)
-#以state/celltype/pseudotime进行
-p1 <- plot_genes_in_pseudotime(cds[keygenes,], color_by = "State")
-p2 <- plot_genes_in_pseudotime(cds[keygenes,], color_by = "celltype")
-p3 <- plot_genes_in_pseudotime(cds[keygenes,], color_by = "Pseudotime")
-p4 <- plot_genes_in_pseudotime(cds[keygenes,], color_by = "type")
-p1|p2|p3|p4
-ggsave("four_plot.pdf",width = 4,height = 8)
 
 
-keygenes <- c( 
-  "MKI67","TOP2A","STMN1","TUBB","HMGB2" #proliferating T cells
-)
-colour=c("#D2B452","#84BAB8","red")
-plot_genes_in_pseudotime(cds[keygenes,], color_by = "type")+ scale_color_manual(values = colour)
-ggsave("six_plot.pdf",width = 4,height = 12)
-
-keygenes <- c( 
-  "GZMA","NKG7","GZMK" #cytotoxic markers
-)
-colour=c("#D2B452","#84BAB8")
-plot_genes_in_pseudotime(cds[keygenes,], color_by = "type")+ scale_color_manual(values = colour)
-ggsave("three_plot.pdf",width = 4,height = 6)
-
-#指定基因
-
-s.genes <- c("MRC1","SPP1","HIF1A","MKI67","MRC1","SIRPA","VEGFB","MERTK"#cytotoxic markers
-)
-s.genes <- c("FOXP3","TIGIT","CTLA4","TNFRSF18")
-s.genes <- c("SELL","CCR7","IL7R", "CD84","CCL5","S100A4")
-plot_genes_jitter(cds[s.genes,], grouping = "celltype", color_by = "celltype")
-plot_genes_violin(cds[s.genes,], grouping = "celltype", color_by = "celltype")
-plot_genes_in_pseudotime(cds[s.genes,], color_by = "celltype")
-p1 <- plot_genes_jitter(cds[s.genes,], grouping = "State", color_by = "State")
-p2 <- plot_genes_violin(cds[s.genes,], grouping = "State", color_by = "State")
-p3 <- plot_genes_in_pseudotime(cds[s.genes,], color_by = "State")
-p1|p2|p3
-ggsave("Genes_jitterplot_state.pdf",width = 16,height = 8)
-
-p1 <- plot_genes_jitter(cds[s.genes,], grouping = "type", color_by = "type")
-p2 <- plot_genes_violin(cds[s.genes,], grouping = "type", color_by = "type")
-p3 <- plot_genes_in_pseudotime(cds[s.genes,], color_by = "type")
-p1|p2|p3
-ggsave("Genes_jitterplot_type.pdf",width = 16,height = 8)
-#拟时序展示单个基因的表达量
-colnames(pData(cds))
-pData(cds)$FOXP3 = log2(exprs(cds)['FOXP3',]+1)
-p1=plot_cell_trajectory(cds, color_by = "FOXP3")  + scale_color_gsea()
-pData(cds)$CTLA4 = log2(exprs(cds)['CTLA4',]+1)
-p2=plot_cell_trajectory(cds, color_by = "CTLA4") + scale_color_gsea()
-
-
-#pseudo线图####
+#pseudo####
 dat <- cds@phenoData@data
 ggplot(dat,aes(Pseudotime,HYPOXIA,fill=Pseudotime))+
   geom_point(size=4)+
   geom_smooth(method= "gam")
-
-?geom_smooth()
-
 
 ggplot(dat,aes(Pseudotime,HYPOXIA,fill=celltype))+
   geom_point(size=3,alpha =0.2,colour = "grey")+
@@ -1729,7 +1566,6 @@ ggplot(dat,aes(Pseudotime,GLYCOLYSIS,fill=celltype))+
               span=0.8,
               se=T
   )
-
 
 ggplot(dat,aes(Pseudotime,HYPOXIA))+
   geom_point(size=3,alpha =0.2,colour = "grey")+
@@ -1790,255 +1626,11 @@ ggplot(dat,aes(Pseudotime,Stress,fill=celltype))+
               span=0.8,
               se=T
   )
-
-
-
-library(patchwork)
-p1+p2
-#####8.寻找拟时序相关的基因（拟时差异基因）
-#使用回归算法，注意不要使用多核心运算，经常会出现警告，
-#Monocle的主要工作是通过生物过程（如细胞分化）讲细胞按顺序排序，而不知道要提前查看哪些基因。一旦这样做了，你就可以分析细胞，找到随着细胞进展而变化的基因。
-# 官方给出的差异分析有三大方法:
-# 1、Basic Differential Analysis
-# 2、Finding Genes that Distinguish Cell Type or State
-# 3、Finding Genes that Change as a Function of Pseudotime我们重点关注第三个:根据伪时间功能寻找差异基因
-
-#sm.ns 函数指出Monocle应该通过表达式值拟合自然样条曲线，以帮助它将表达式的变化描述为进程的函数。
-
-
-#这里是把排序基因（ordergene）提取出来做回归分析，来找它们是否跟拟时间有显著的关系
-#如果不设置，就会用所有基因来做它们与拟时间(Pseudotime参数)的相关性
-Time_diff <- differentialGeneTest(cds[ordergene,], cores = 4, 
-                                  fullModelFormulaStr = "~sm.ns(Pseudotime)")
-Time_diff <- Time_diff[,c(5,2,3,4,1,6,7)] #把gene放前面，也可以不改
-#保存时间差异基因
-write.csv(Time_diff, "Time_diff_all.csv", row.names = F)
-colnames(Time_diff)
-library(dplyr)
-Time_genes <- Time_diff %>% pull(gene_short_name) %>% as.character()
-p=plot_pseudotime_heatmap(cds[Time_genes,], num_clusters=4, 
-                          show_rownames=T, 
-                          return_heatmap=T
-)
-p
-ggsave("Time_heatmapAll.pdf",width = 5,height = 12)
-
-#前面通过设置num_clusters将热图聚成了4个cluster，如果想要把每个cluster的基因单独提取出来分析
-
-p$tree_row
-# Call:
-# hclust(d = d, method = method)
-# Cluster method   : ward.D2 
-# Number of objects: 2829 
-clusters <- cutree(p$tree_row, k = 4)
-clustering <- data.frame(clusters)
-clustering[,1] <- as.character(clustering[,1])
-colnames(clustering) <- "Gene_Clusters"
-table(clustering)
-# 1    2    3    4 
-# 570 1031  506  722 
-write.csv(clustering, "Time_clustering_all.csv", row.names = F)
-#这样就把每个基因属于哪个cluster提取出来了，后续可以做每个cluster的富集分析。
-Time_genes <- top_n(Time_diff, n = 100, desc(qval)) %>% pull(gene_short_name) %>% as.character()
-plot_pseudotime_heatmap(cds[Time_genes,], num_clusters=4, show_rownames=T, return_heatmap=T)
-
-
-# 注: plot_pseudotime_heatmap函数可以来可视化所有monocle的假时间依赖性基因。
-# plot_pseudotime_heatmap采用CellDataSet对象（通常只包含重要基因的子集)，
-# 并生成平滑的表达曲线，非常类似于plot_genes_in_pseudotime。
-# 然后它对这些基因进行聚类，并使用pheatmap软件包进行绘图。
-# 绘出的热图可以让我们观测到假时间依赖性基因中的不同基因模块在不同的时间内共同变化，
-# 能比较好的回答时间序列基因表达中“哪些基因遵循相似的动力学趋势"这一常见问题。
-
-
-#显著差异基因按照热图结果排序并保存
-hp.genes <- p$tree_row$labels[p$tree_row$order]
-Time_diff_sig <- Time_diff[hp.genes, c("gene_short_name", "pval", "qval")]
-write.csv(Time_diff_sig, "Time_diff_sig.csv", row.names = F)
-
-
-
-#另外也可以手动选择基因来绘制热图，查看其表达模式
-marker_genes <- row.names(subset(fData(cds),
-                                 gene_short_name %in% c("MEF2C", "MEF2D", "MYF5",
-                                                        "ANPEP", "PDGFRA","MYOG",
-                                                        "TPM1",  "TPM2",  "MYH2",
-                                                        "MYH3",  "NCAM1", "TNNT1",
-                                                        "TNNT2", "TNNC1", "CDK1",
-                                                        "CDK2",  "CCNB1", "CCNB2",
-                                                        "CCND1", "CCNA1", "ID1")))
-
-diff_test_res <- differentialGeneTest(cds[marker_genes,],
-                                      fullModelFormulaStr = "~sm.ns(Pseudotime)")
-sig_gene_names <- row.names(subset(diff_test_res, qval < 0.1))
-plot_pseudotime_heatmap(cds[sig_gene_names,],
-                        num_clusters = 4,
-                        cores = 1,
-                        show_rownames = T)
-###
-#生信技能数的monocle画热图
-cds=my_cds_subset
-df=pData(cds)
-colnames(df)
-plot_cell_trajectory(cds)
-counts = Biobase::exprs(cds)
-dim(counts)
-
-library(dplyr) 
-deg %>% arrange(qval) %>% head(100) %>% select(gene_short_name) -> my_pseudotime_gene
-my_pseudotime_gene=my_pseudotime_gene[,1]
-my_pseudotime_gene
-
-library(pheatmap)
-#数据中心化和归一化
-n=t(scale(t(counts[my_pseudotime_gene,]))) # 'scale'可以对log-ratio数值进行归一化
-n[n>2]=2 
-n[n< -2]= -2
-n[1:4,1:4]
-pheatmap(n,show_colnames =F,show_rownames = F)
-ac=df[,c(18,19,27)]
-head(ac)
-rownames(ac)=colnames(n)
-dim(n)
-n[1:4,1:4]
-pheatmap(n,show_colnames =F,
-         show_rownames = F,
-         annotation_col=ac)
-od=order(ac$Pseudotime)
-od=order(ac$type)
-pheatmap(n[,od],show_colnames =F,
-         show_rownames = F,cluster_cols = F,
-         annotation_col=ac[od,])
-
-# 单细胞轨迹常常包括分支。这些分支的产生是因为细胞执行不同的基因表达程序。在发育过程中，
-# 当细胞做出命运选择时，分支出现在轨迹中:一个发育谱系沿着一条路径前进，而另一个谱系产生第二条路径。
-# Monocle包含分析这些分支事件的广泛功能。Monocle提供了一个特殊的统计测试:分支表达式分析建模，或BEAM。
-# BEAM(Branched expression analysis modeling)是一种统计方法，用于寻找以依赖于分支的方式调控的基因。
-
-plot_cell_trajectory(cds, color_by = "State")
-#BEAM进行统计分析
-BEAM_res <- BEAM(cds[ordergene,], branch_point = 1, cores = 4) 
-#这里用的是ordergene，也就是第六步dpFeature找出来的基因。如果前面用的是seurat的marker基因，记得改成express_genes
-#BEAM_res <- BEAM(cds, branch_point = 1, cores = 2) #对2829个基因进行排序，运行慢
-BEAM_res <- BEAM_res[order(BEAM_res$qval),]
-BEAM_res <- BEAM_res[,c("gene_short_name", "pval", "qval")]
-head(BEAM_res)
-#           gene_short_name         pval         qval
-# CD79A               CD79A 2.757676e-73 7.782161e-70
-# TCL1A               TCL1A 1.574889e-65 2.222168e-62
-# IGLL5               IGLL5 2.356778e-64 2.216942e-61
-# S100A9             S100A9 1.504319e-58 1.061297e-55
-# S100A8             S100A8 6.028175e-57 3.402302e-54
-# LINC00926       LINC00926 3.180527e-55 1.495908e-52
-write.csv(BEAM_res, "BEAM_res.csv", row.names = F)
-plot_genes_branched_heatmap(cds[row.names(subset(BEAM_res,qval < 1e-4)),],
-                            branch_point = 1, #绘制的是哪个分支
-                            num_clusters = 3, #分成几个cluster，根据需要调整
-                            cores = 1,
-                            use_gene_short_name = T,
-                            show_rownames = T)#有632个gene，太多了
-
-library(RColorBrewer)
-plot_genes_branched_heatmap(cds[row.names(subset(BEAM_res,qval<1e-4)),],
-                            branch_point = 1,#绘制的是哪个分支
-                            num_clusters = 4, #这些基因被分成几个group
-                            cores = 4,
-                            use_gene_short_name = F,
-                            show_rownames = F,
-                            branch_labels = c("Cell fate 1", "Cell fate 2"),
-                            #hmcols = NULL, #默认值
-                            hmcols = colorRampPalette(rev(brewer.pal(9, "PRGn")))(62),
-                            branch_colors = c("#979797",#pre-branch颜色
-                                              "#F05662", #Cell fate 1, 颜色
-                                              "#7990C8" #Cell fate 2颜色
-                            ), 
-                            return_heatmap = F #是否返回一些重要信息
-)
-
-#选前100个基因可视化
-BEAM_genes <- top_n(BEAM_res, n = 100, desc(qval)) %>% pull(gene_short_name) %>% as.character()
-p <- plot_genes_branched_heatmap(cds[BEAM_genes,],  branch_point = 1, 
-                                 num_clusters = 3, show_rownames = T, return_heatmap = T)
-ggsave("BEAM_heatmap.pdf", p$ph_res, width = 6.5, height = 10)
-
-#显著差异基因(top100)按热图结果排序并保存
-##如果要所有的差异基因，就把前面所632个基因的热图存为p
-hp.genes <- p$ph_res$tree_row$labels[p$ph_res$tree_row$order]
-BEAM_sig <- BEAM_res[hp.genes, c("gene_short_name", "pval", "qval")]
-write.csv(BEAM_sig, "BEAM_sig.csv", row.names = F)
-
-head(BEAM_sig)
-#选择上面热图中或显著差异基因中感兴趣的基因进行可视化
-genes <- row.names(subset(fData(cds),
-                          gene_short_name %in% c( "CD8A", "CEBPD", "TYROBP")))
-
-plot_genes_branched_pseudotime(cds[genes,],
-                               branch_point = 1,
-                               color_by = "State",
-                               ncol = 1)
-
-#画甜甜圈图State,celltype,type 开始
-dfsub <- df[,c(18,19,28)]#把各自的列选出来
-dfsub$x <- "a"
-dfsub$y <- "b"
-dfsub$z <- "c"
-Cellratio <- prop.table(table(dfsub$celltype))#计算各组样本不同细胞群比例
-Cellratio <- as.data.frame(Cellratio)
-colnames(Cellratio) <- c("celltype","Freq1")
-Cellratio2 <- prop.table(table(dfsub$type))#计算各组样本不同细胞群比例
-Cellratio2 <- as.data.frame(Cellratio2)
-colnames(Cellratio2) <- c("type","Freq2")
-Cellratio3 <- prop.table(table(dfsub$State))
-Cellratio3 <- as.data.frame(Cellratio3)
-colnames(Cellratio3) <- c("State","Freq3")
-dfsub1 <- merge(dfsub,Cellratio,by = "celltype")
-dfsub1 <- merge(dfsub1,Cellratio2,by = "type")
-dfsub1 <- merge(dfsub1,Cellratio3,by = "State")
-dfsub1$Freq1 <-1
-dfsub1$Freq2 <-1
-dfsub1$Freq3 <-1
-#图1
-ggplot(dfsub1) +
-  # 绘制柱状图
-  geom_bar(aes(x,Freq1,fill = celltype), 
-           stat = 'identity', width = .8)+
-  geom_bar(aes(y,Freq2,fill = type), 
-           stat = 'identity', width = .8)+
-  geom_bar(aes(z,Freq3,fill = State), 
-           stat = 'identity', width = .8)+
-  coord_polar(theta="y") + theme_void()#
-#图2 设置颜色
-ClusterName_color_panel <- c(
-  "Naive_T_cell" = "#DD1F4D", 
-  "Cytotoxic_T_cell" = "#F2C31C", 
-  "Proliferating_T_cell" = "#A0C53B",
-  "Regulatory_T_cell" = "#2F89CA",
-  "1" ="#F2BA4B",
-  "2"="#E6DFB5",
-  "3"="#54BDB7",
-  "4"="#EDF1BB",
-  "5"="#EC6868",
-  "high"="#E18E7C",
-  "low"="#2D9783"
-)
-ggplot(dfsub1) +
-  # 绘制柱状图
-  geom_bar(aes(x,Freq1,fill = celltype), 
-           stat = 'identity', width = .8)+ 
-  scale_fill_manual(name = "", values = ClusterName_color_panel)+
-  scale_color_manual(name = "", values = ClusterName_color_panel)+
-  geom_bar(aes(y,Freq2,fill = type), 
-           stat = 'identity', width = .8)+ 
-  geom_bar(aes(z,Freq3,fill = State), 
-           stat = 'identity', width = .8)+ 
-  coord_polar(theta="y") + theme_void()#
-ggsave("circle_plot.pdf",height = 6,width = 6)
-#画甜甜圈图State,celltype,type结束
-
-#monocle保存数据####
 save(cds,file="cds.Rdata")
-#genesets_used####
-#对T细胞进行分组GSEA
+#
+
+#genesets_used for GSEA####
+#
 library(Seurat)
 library(msigdbr)
 library(GSVA)
@@ -2057,7 +1649,6 @@ gs_used <- genesets[c("HALLMARK_ADIPOGENESIS","HALLMARK_FATTY_ACID_METABOLISM","
 )]
 names(genesets)
 gs_used
-
 
 genesets<- msigdbr(species = "Homo sapiens", category = "C2",subcategory = "CP:KEGG")
 genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
@@ -2082,7 +1673,6 @@ cd_features <- list(c("PDCD1","TIGIT","LAG3","HAVCR2","CTLA4"#'Exhausted_Score'
 names(cd_features) <- 'Exhausted_Score'
 tt <- c(tt,cd_features)
 
-
 cd_features <- list(c("NKG7","PRF1","CCL4","GZMA","GZMB","CST7","IFNG","GZMK"#'Cytotoxic_Score',"FGFBP2"
 ))
 names(cd_features) <- 'Cytotoxic_Score'
@@ -2104,7 +1694,6 @@ cd_features <- list(c(  #M1 Macrophage Polarization
 
 names(cd_features) <- 'M1_Macrophage_Polarization'
 tt <- c(tt,cd_features)
-
 cd_features <- list(c(
   "ARG1","ARG2", "IL10",
   "FCGR2A","FCGR2B",#"CD32",
@@ -2170,7 +1759,6 @@ cd_features <- list(c(#Anti_inflammatory_score
 names(cd_features) <- 'Anti_inflammatory_score'
 tt <- c(tt,cd_features)
 
-
 DefaultAssay(masce) <- "RNA"
 #Stress
 a <-"FOS
@@ -2229,12 +1817,11 @@ cd_features <- strsplit(a,split = "\n")
 names(cd_features) <- 'Stress'
 tt <- c(tt,cd_features)
 
-
 genesets <- tt
-#GSVA富集分析#
+#
 Idents(masce) <- "type" 
 expr <- AverageExpression(masce, assays = "RNA", slot = "data")[[1]]
-expr <- expr[rowSums(expr)>0,]  #选取非零基因
+expr <- expr[rowSums(expr)>0,]  #
 expr <- as.matrix(expr)
 head(expr)
 
@@ -2254,7 +1841,7 @@ genesets <- tt
 #
 Idents(masce) <- "type" 
 expr <- AverageExpression(masce, assays = "RNA", slot = "data")[[1]]
-expr <- expr[rowSums(expr)>0,]  #选取非零基因
+expr <- expr[rowSums(expr)>0,]  
 expr <- as.matrix(expr)
 head(expr)
 
@@ -2268,56 +1855,8 @@ pheatmap::pheatmap(gsva.res, show_colnames = T, cluster_cols=F,cluster_rows=F,
                    angle_col = "45",
                    color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
 dev.off()
-#SPP1+vs_C1QA田字火山图####
-library(tibble)
-Idents(masce) <- "celltype"
-de_genes <- FindMarkers(object = masce, ident.1 = "Mac_c2_SPP1", ident.2 = "Mac_c0_C1QA", logfc.threshold = 0.01, min.pct = 0.01)
-de_genes <- rownames_to_column(de_genes)
-write.csv(de_genes,"de_genes1.csv")
-de_genes2 <- FindMarkers(object = masce, ident.1 = "Mac_c1_IL1B", ident.2 = "Mac_c0_C1QA", logfc.threshold = 0.01, min.pct = 0.01)
-de_genes2 <- rownames_to_column(de_genes2)
-write.csv(de_genes2,"de_genes2.csv")
 
-
-#合并####
-df <- merge(de_genes,de_genes2,by="rowname")
-write.csv(df,"df.csv")
-# # 设置p值
-# df$pval <- ""
-# df$pval[which(df$p_val.x<0.05 & df$p_val.y<0.05)] <- "red"
-# df$pval[which(df$p_val.x>0.05 & df$p_val.y<0.05)] <- "blue"
-# df$pval[which(df$p_val.x<0.05 & df$p_val.y>0.05)] <- "purple"
-# df$pval[which(df$p_val.x>0.05 & df$p_val.y>0.05)] <- "grey"
-# table(df$pval)
-#设置显示的值
-df$label <- "black"
-df$label[which(df$avg_log2FC.x > 0.5 & df$avg_log2FC.y > 0.5)] <- "red"
-df$label[which(df$avg_log2FC.x > 0.5 & df$avg_log2FC.y <= -0.5)] <- "blue"
-df$label[which(df$avg_log2FC.x <= -0.5 & df$avg_log2FC.y > 0.5)] <- "purple"
-df$label[which(df$avg_log2FC.x <= -0.5 & df$avg_log2FC.y <= -0.5 )] <- "grey"
-
-table(df$label)
-library(ggrepel)
-ggplot(df, aes(x =avg_log2FC.x, y=avg_log2FC.y, colour=label)) + #x、y轴取值限制，颜色根据"Sig"
-  geom_point(alpha=0.65, size=2) +  #点的透明度、大小
-  scale_color_manual(values=c("grey", "blue","purple","red","orange")) + xlim(c(-2, 2)) +  #调整点的颜色和x轴的取值范围
-  geom_vline(xintercept=c(-0.5,0.5),lty=4,col="black",lwd=0.8) + #添加x轴辅助线,lty函数调整线的类型："twodash"、"longdash"、"dotdash"、"dotted"、"dashed"、"solid"、"blank"
-  geom_hline(yintercept = c(-0.5,0.5), lty=4,col="black",lwd=0.8) +  #添加y轴辅助线
-  labs(x="Mac_c2_SPP1_vs_Mac_c0_C1QA", y="Mac_c1_IL1B_vs_Mac_c0_C1QA") +  #x、y轴标签
-  ggtitle("Volcano") + #标题
-  theme_bw() + # 主题，help(theme)查找其他个性化设置
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.position="right", 
-        legend.title = element_blank()
-  ) + geom_text_repel(
-    data= subset(df,df$label%in%c("blue","red","grey","purple")),# 可以设置跟上面不同的阈值，用数值替换即可
-    aes(label = rowname), size = 3,
-    box.padding = unit(0.5, "lines"),
-    point.padding = unit(0.8, "lines"), segment.color = "black", show.legend = FALSE)
-ggsave("tian.pdf",height = 10,width = 10)
-
-
-#画樊嘉热图MHCII#####
+#heatmap for MHCII molecule#####
 genes_to_check = c("TAP1","TAP2","B2M",
                    "HLA-DPB1","HLA-DPA1","HLA-DQB2","HLA-DRA","HLA-DRB1","HLA-DRB3","HLA-DRB4",
                    "HLA-B","HLA-C", "HLA-A"  
@@ -2330,20 +1869,19 @@ p <- DotPlot(masce, features = unique(genes_to_check),
 p
 dat <-p$data[3:5]
 colnames(dat) <- c("Gene","variable","value")
-#长数据变宽数据
 library(reshape2)
 dat1 <-dcast(dat,Gene~variable)
 rownames(dat1) <- dat1$Gene
 dat1 <- dat1[,-1]
 bk <- c(seq(-3, 3,by = 0.01))
 library(pheatmap)
-#自己
+#
 pheatmap::pheatmap(dat1,
          cluster_cols = F, cluster_rows = F, scale = "none",
          display_numbers = F,
          border_color = "white",
-         gaps_row = c(3,8),#对想要分隔的基因
-         gaps_col = c(1,2),#对象要分隔的细胞群
+         gaps_row = c(3,8),#
+         gaps_col = c(1,2),#
          color = colorRampPalette(c("#24ABAE","white","#CF254A"))(length(bk)),
          width = 5,
          height = 7
@@ -2354,39 +1892,22 @@ pheatmap(dat1,
          cluster_cols = F, cluster_rows = F, scale = "none",
          display_numbers = F,
          border_color = "black",
-         gaps_row = c(3,11,14,16,20,23,27,30,34,38,41),#对想要分隔的基因
-         gaps_col = c(3, 7,8,11),#对象要分隔的细胞群
+         gaps_row = c(3,11,14,16,20,23,27,30,34,38,41),#
+         gaps_col = c(3, 7,8,11),
          color = colorRampPalette(c("#2A9280","white","#D1694D"))(length(bk)),
          width = 5,
          height = 7,
-         filename = "tcell_heatmap.pdf"
+         filename = "cell_heatmap.pdf"
 )
-#樊嘉
-pheatmap(dat1,
-         cluster_cols = F, cluster_rows = F, scale = "none",
-         display_numbers = F,
-         border_color = "black",
-         gaps_row = c(4,7,12,21,25,28,30),#对想要分隔的基因
-         gaps_col = c(3, 7,10),#对象要分隔的细胞群
-         color = colorRampPalette(c("#E2AF5F","white", "#6C285D"))(length(bk)),
-         width = 5,
-         height = 7,
-         filename = "tcell_heatmap_Fanjia.pdf"
-)
-dev.new()
 
 
-#两基因相关性图####
-FeatureScatter(masce, feature1 = "SPP1", feature2 = "TREM2")
-
-#addmodulescoreDC模块####
+#addmodulescore####
 signaturelist <- read.csv("DC_Siguature.csv",header = T,check.names = F) 
 DefaultAssay(masce) <- "RNA"
 cd_features <- list(#Antigen_processing_and_presentation
   signaturelist$Antigen_processing_and_presentation
   
 )
-#修改变量名称
 masce <- AddModuleScore(masce,features = cd_features,ctrl = 100,name = "CD_Features")
 colnames(masce@meta.data)
 colnames(masce@meta.data)[which(colnames(masce@meta.data) %in% "CD_Features1")] <- 'Antigen_processing_and_presentation'
@@ -2424,22 +1945,21 @@ VlnPlot(masce,features = 'Dendritic_cell_differentation',pt.size = 0, adjust = 2
 VlnPlot(masce,features = 'Co_stimulation_signature',pt.size = 0, adjust = 2,group.by = "type")
 
 #
-#数据准备
 mydata<- FetchData(masce,vars = c("celltype","type",'Antigen_processing_and_presentation','Immune_suppressive_score','Dendritic_cell_differentation','Co_stimulation_signature'))
-#看一下小提琴怎么画
+#
 library(ggplot2)
 library(ggsci)
 library(hrbrthemes)
 library(tidyr)
 library(reshape2)  
 
-#melt()函数将宽格式转化为长格式
-data_long_m<-melt(mydata, id.vars = c("celltype","type"), #需保留的不参与聚合的变量列名
-                  measure.vars = c('Antigen_processing_and_presentation','Immune_suppressive_score','Dendritic_cell_differentation','Co_stimulation_signature'),#需要聚合的变量s1-s10
+#
+data_long_m<-melt(mydata, id.vars = c("celltype","type"), #
+                  measure.vars = c('Antigen_processing_and_presentation','Immune_suppressive_score','Dendritic_cell_differentation','Co_stimulation_signature'),#
                   variable.name = c('score'),#聚合变量的新列名
                   value.name = 'value')#聚合值的新列名
 data_long_m
-#合并plot
+#
 my_comparisons = list( c("J", "N"),c("T", "N"),c("J", "T"))
 ggplot(data = data_long_m, aes(x = type, y = value, fill = type)) +
   geom_violin(position = position_dodge(0.5))+stat_compare_means(comparisons = my_comparisons,
@@ -2466,7 +1986,7 @@ VlnPlot(masce,features = 'Antigen_processing_and_presentation',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
+#
 my_comparisons = list( c("N", "J"),
                        c("J","T"),
                        c("T", "N")
@@ -2490,7 +2010,7 @@ VlnPlot(masce,features = 'Immune_suppressive_score',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
+#
 ggboxplot(P$data,x = "ident",y = "Immune_suppressive_score",color = "ident")+ theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
                      symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
@@ -2510,8 +2030,7 @@ VlnPlot(masce,features = 'Dendritic_cell_differentation',
         group.by = "celltype")
 table(P$data[,2])
 
-#箱型图画法
-
+#
 ggboxplot(P$data,x = "ident",y = "Dendritic_cell_differentation",color = "ident")+ theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
                      symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
@@ -2532,29 +2051,13 @@ VlnPlot(masce,features = 'Co_stimulation_signature',
         group.by = "type")
 table(P$data[,2])
 
-#箱型图画法
+#
 ggboxplot(P$data,x = "ident",y = "Co_stimulation_signature",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+ theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1))+
   stat_compare_means(comparisons = my_comparisons, method = "wilcox.test",label = "p.signif",
                      symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
                                       symbols = c("***", "**", "*", "ns"))
   )
 ggsave("Co_stimulation_signature_box2.pdf",width = 2,height = 4)
-
-
-#cor####
-library(pheatmap)
-Idents(masce)<- masce$celltype
-av.exp<- AverageExpression(masce)$RNA
-# av.exp<- av.exp[which(row.names(av.exp)%in% features),]
-features=names(tail(sort(apply(av.exp, 1, sd)),length(rownames(masce))))
-av.exp<- av.exp[which(row.names(av.exp)%in% features),]
-av.exp <- cor(av.exp, method= "spearman")
-pheatmap::pheatmap(av.exp,color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
-pheatmap::pheatmap(av.exp,
-                   display_numbers = T,
-                   color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
-pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#040206","#201B3F","#5A2766","#A64056","#CD663A","#DA8B3B","#EFEAAB"))(50))
-pheatmap::pheatmap(av.exp,color = colorRampPalette(c("#1D2C6C", "#1C4A9E", "#34A2DC","#78C5AB","#C8DB49","#F3F900","#E72318"))(50))
 
 #Ro/e####
 library("sscVis")
@@ -2655,20 +2158,15 @@ test.dist.table <- function(count.dist,min.rowSum=0)
   return(count.dist.melt.ext.tb)
 }
 
-setwd("D:\\leadtest\\immune\\myeloid\\macro2")
-#设置图片输出目录
-out.prefix <- "D:\\leadtest\\immune\\myeloid\\macro2"
-# 源代码
-# OR.CD8.list <- do.tissueDist(cellInfo.tb=meta.tb[stype=="neu" &  treatment=="baseline",],
-#                              out.prefix=sprintf("%s.STARTRAC.dist.T.baseline.CD8",out.prefix),
-#                              pdf.width=4,pdf.height=6,verbose=1)
+setwd("D:\\leadtest\\immune\\myeloid\\macro")
+#
+out.prefix <- "D:\\leadtest\\immune\\myeloid\\macro"
+
 masce$meta.cluster <- masce$celltype
 masce$stype <- "Macro"
 masce$loc <- masce$type
 table(masce$stype)
 meta.tb <- masce@meta.data
-
-
 
 OR.CD8.list <- do.tissueDist(cellInfo.tb=meta.tb,
                              out.prefix=sprintf("%s.STARTRAC.dist.T.baseline.CD8",out.prefix),
@@ -2677,24 +2175,20 @@ OR.CD8.list <- do.tissueDist(cellInfo.tb=meta.tb,
 
 OR.CD8.list$OR.dist.mtx
 OR.CD8.list$p.dist.tb
-#接下来画热图
+#
 dat <- OR.CD8.list$OR.dist.mtx
 dat_p <- as.data.frame(OR.CD8.list$p.dist.tb)
 rownames(dat_p) <- dat_p[,1]
 dat_p <- dat_p[,-1]
 
-
-# 修改一下特殊值
-dat[,1][5] <- as.numeric("5.88343046")
-
-#OR>1.5越倾向在该组织分布，OR<0.5越不倾向在该组织中分布。
+#
 library(pheatmap)
 pheatmap(dat, cellwidth = 20, cellheight = 20, 
          main = "heatmap"#filename = "heatmap1.png"
 )
 my_colors <- c("red", "green", "blue", "yellow")
 my_palette <- colorRampPalette(c("blue", "white", "red"))
-# 绘制热图，并使用自定义颜色向量
+# 
 pheatmap(dat, cellwidth = 20, cellheight = 20,angle = 0,color = colorRampPalette(c("white","red","#71151A"))(100),cluster_rows = F,
          display_numbers = matrix(ifelse(abs(dat_p) <0.05, "*", ""),nrow(dat_p)),
          filename = "OR2.pdf"
@@ -2712,8 +2206,7 @@ pheatmap(dat, cellwidth = 20, cellheight = 20,
          filename = "OR3.pdf"
 )
 
-
-#画雷达图####
+#radar plot####
 dat <- masce@meta.data[,c(5,28:36)]#选取分析的54种代谢
 
 dat1 <- aggregate(dat[,2:ncol(dat)],by=list(type=dat$type),mean)#
@@ -2750,17 +2243,15 @@ legend(x=1.5, y=1.5, legend = rownames(data[-c(1,2),]),title="Type",  bty = "n",
 
 
 #pyscenic####
-#做pyscenic的分析#####
-#看一下不同位置的肿瘤细胞转录因子有什么区别
-#第一步准备文件
+#info_preparation
 setwd("D:\\leadtest\\immune\\myeloid\\macro2\\pyscenic")
 write.csv(t(as.matrix(masce@assays$RNA@counts)), file = "masce.csv")
 
 
-# #保存文件####
+#save files####
 # setwd("D:\\leadtest\\immune\\myeloid\\macro2")
 # save(masce,file="masce_marker.Rdata")
-#加载数据####
+#load files####
 setwd("D:\\leadtest\\immune\\myeloid\\macro2")
 load("masce_marker.Rdata")
 library(Seurat)
