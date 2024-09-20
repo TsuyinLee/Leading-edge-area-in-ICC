@@ -1,0 +1,1685 @@
+setwd("D:\\leadtest\\immune\\tnk")
+#t_cell
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(Seurat)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+library(dplyr)
+
+
+#extracting cell
+load("tksce_marker.Rdata")
+table(tksce$celltype)
+t8sce$celltype <- as.character(t8sce$celltype)
+name = "tnk_cell"
+t8sce <- subset(tksce, cells = colnames(tksce)[which(tksce$celltype %in% grep("CD8\\+T", tksce$celltype, value = TRUE))])
+table(t8sce$celltype)
+setwd("D:\\leadtest\\immune\\tnk\\cd8")
+save(t8sce,file ="t8sce.Rdata")
+
+rm(list =ls());gc()
+load("t8sce.Rdata")
+table(t8sce$type,t8sce$patient_id)
+name = "CD8T_cell"
+t8sce$type <- factor(t8sce$type,levels = c("N","J","T"))
+#reclustering####
+DefaultAssay(t8sce) <- "CCA"
+t8sce = FindVariableFeatures(t8sce,nfeatures = 500)
+t8sce = ScaleData(t8sce
+                 #vars.to.regress = c("nFeature_RNA", "percent_mito")
+)
+t8sce = RunPCA(t8sce, npcs = 50)
+t8sce = RunUMAP(t8sce, dims = 1:20)
+
+
+#DEGs####
+table(t8sce@active.ident) 
+t8sce.markers2 <- FindAllMarkers(object = t8sce, only.pos = TRUE, min.pct = 0.25, 
+                               thresh.use = 0.25)
+t8sce.markers2$delt <- t8sce.markers2$pct.1-t8sce.markers2$pct.2
+
+write.csv(t8sce.markers2,"t8sce.markers2.csv")
+library(dplyr) 
+top5 <- t8sce.markers2 %>% group_by(cluster) %>% top_n(5, avg_log2FC)
+
+genes_to_check <- top5$gene
+DotPlot(t8sce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype' )+th+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+name="T_cell"
+ggsave(paste0(name,"_markers_by_celltypes.pdf"),width = 13,height =3.0)
+
+
+
+#
+#cell_proportion1####
+Idents(t8sce) <- t8sce$celltype
+table(t8sce$patient_id)#
+prop.table(table(Idents(t8sce)))
+table(Idents(t8sce), t8sce$patient_id)#
+Cellratio <- prop.table(table(Idents(t8sce), t8sce$patient_id), margin = 2)#
+Cellratio <- as.data.frame(Cellratio)
+colnames(Cellratio)[1] <- "Cell_type"
+allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
+            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
+            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+library(ggplot2)
+ggplot(Cellratio) + 
+  geom_bar(aes(x =Var2, y= Freq, fill = Cell_type),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
+  theme_classic() +
+  labs(x='Sample',y = 'Ratio')+
+  scale_fill_manual(values = allcolour)
+#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+ggsave("propotion_of_all_celltype_by_patient_id.pdf",width = 5,height = 6)
+
+#cell_proportion2####
+Idents(t8sce) <- t8sce$celltype
+table(t8sce$type)
+prop.table(table(Idents(t8sce)))
+table(Idents(t8sce), t8sce$type)
+Cellratio <- prop.table(table(Idents(t8sce), t8sce$type), margin = 2)
+Cellratio <- as.data.frame(Cellratio)
+colnames(Cellratio)[1] <- "Cell_type"
+allcolour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
+            "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
+            "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+library(ggplot2)
+ggplot(Cellratio) + 
+  geom_bar(aes(x =Var2, y= Freq, fill = Cell_type),stat = "identity",width = 0.7,size = 0.5,colour = '#222222')+ 
+  theme_classic() +
+  labs(x='Sample',y = 'Ratio')+
+  scale_fill_manual(values = allcolour)
+#+theme(panel.border = element_rect(fill=NA,color="black", size=0.5, linetype="solid"))
+ggsave("propotion_of_all_celltype_by_type.pdf",width = 4,height = 6)
+
+#cell_proportion3####
+#
+#tksce$celltype <- factor(tksce$celltype)
+df <- FetchData(t8sce, vars = c('celltype', 'type',"patient_id"))
+table(df$type)#
+table(df$patient_id)#
+prop.table(table(df$celltype))
+prop.table(table(df$type))
+table(df$celltype, df$type)#
+table(df$celltype, df$patient_id)
+Cellratio <- prop.table(table(df$celltype,df$patient_id),margin = 2)#
+Cellratio <- as.data.frame(Cellratio)
+colnames(Cellratio) <- c('celltype',"patient_id","Freq")
+#
+Cellratio$type <- ""
+Cellratio$type <- substr(Cellratio$patient_id,5,5)
+Cellratio$patient <- substr(Cellratio$patient_id,1,3)
+
+#plot1
+ggplot(Cellratio, aes(x=type, y=Freq,color=type)) + 
+  geom_jitter(width = 0.2, alpha = 0.5)+facet_wrap(~celltype)  
+library(ggsci)
+library(tidyr)
+library(ggpubr)
+#plot2
+Cellratio$type <- factor(Cellratio$type,levels=c("N","J","T"))#修改柱状图位置
+class(Cellratio$type)
+
+#
+ggboxplot(Cellratio, x = "celltype", y = "Freq",
+          fill = "type", palette = c("#2B9885","#DA6C4F","#E2BE6A"))+
+  stat_compare_means(aes(group = type),
+                     method = "wilcox.test",#"wilcox.test" or t.test
+                     label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
+                                      symbols = c("***", "**", "*", "")))
+#ggsave("immune_prop_by_type.pdf",width = 6,height = 4)
+allcolour=c("#2F89CA","#F2C31C","#DD1F4D","#FFA500","#9370DB",#1-5
+            "#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",#6-10
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3",#11-15
+            "#800080","#A0522D","#D2B48C","#D2691E","#87CEEB",#16-20
+            "#40E0D0","#5F9EA0","#063A94","#0000CD","#008B8B",#21-25
+            "#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4",
+            "#32CD32","#F0E68C","#FFFFE0","#EE82EE","#FF6347",
+            "#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+#plot3#
+my_comparisons = list( c("N", "J"),c("N", "T"),c("J", "T"))
+ggplot(Cellratio, aes(x = type, y = Freq))+ 
+  labs(y="Proportion",x= "Position",title = "Cell composition")+
+  scale_colour_manual(name="", values =allcolour)+
+  geom_boxplot(aes(color = type),position=position_dodge(0.5),size=0.4,
+               outlier.alpha = 1, outlier.size = 0.5)+
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())+
+  scale_y_continuous(labels = scales::percent
+                     #limits = c(0, max(Cellratio$Freq)+0.1)
+  )+
+  geom_point(data = Cellratio, aes(x = type, y = Freq, fill=patient),
+             size = 5, shape = 21,stroke = 0.5,alpha = 0.5)+
+  facet_wrap(~ celltype,scales = "free",ncol = 4) + 
+  stat_compare_means(aes(group = type),comparisons = my_comparisons,
+                     method = "wilcox.test",#"wilcox.test" or t.test
+                     #ref.group = "HCC",
+                     size = 5,
+                     hide.ns =T,
+                     label = "p.signif",
+                     #label.y=max(Cellratio$Freq),
+                     #label.x = 1.5,#两个名称之间
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
+                                      symbols = c("***", "**", "*", "")
+                     )
+  )
+#ggsave(paste0(name,"_immune_prop_by_type2.pdf"),width = 8,height = 4)#用
+
+
+allcolour=c("#1CB4B8","#F2C31C","#DD1F4D","#FFA500","#9370DB",#1-5
+            "#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",#6-10
+            "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3",#11-15
+            "#800080","#A0522D","#D2B48C","#D2691E","#87CEEB",#16-20
+            "#40E0D0","#5F9EA0","#063A94","#0000CD","#008B8B",#21-25
+            "#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4",
+            "#32CD32","#F0E68C","#FFFFE0","#EE82EE","#FF6347",
+            "#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+my_comparisons = list( c("N", "J"),c("N", "T"),c("J", "T"))
+ggboxplot(Cellratio, x = "type", y = "Freq",
+          fill = "type", palette = allcolour)+
+  theme(legend.position="right", panel.border = element_rect(color = "black",  fill = NA))+
+  facet_wrap(~ celltype,scales = "free",ncol = 5) + 
+  geom_point(data = Cellratio, aes(x = type, 
+                                   y = Freq, 
+                                   color = patient), #patient_id改成样本号
+             size = 6, 
+             shape = 21,
+             stroke = 0.5,alpha = 0.5)+
+  stat_compare_means(comparisons = my_comparisons,
+                     method = "wilcox.test",#"wilcox.test" 多组用，两组用t.test
+                     label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
+                                      symbols = c("***", "**", "*", "")))+ggtitle("Cell type")+
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("immune_prop_by_type2.pdf",width = 10,height = 6)#用
+ggsave("immune_prop_by_type3.pdf",width = 4,height = 3)#用
+
+#genesets_used_NJT####
+class(t8sce$type)
+t8sce$celltypegs <- paste0(t8sce$celltype,"_",t8sce$type)
+t8sce$celltypegs <- factor(t8sce$celltypegs)
+
+#
+library(Seurat)
+library(msigdbr)
+library(GSVA)
+library(tidyverse)
+library(clusterProfiler)
+library(patchwork)
+library(limma)
+genesets <- msigdbr(species = "Homo sapiens", category = "H") 
+genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
+genesets <- split(genesets$gene_symbol, genesets$gs_name)
+names(genesets)
+gs_used <- genesets[c("HALLMARK_ADIPOGENESIS","HALLMARK_FATTY_ACID_METABOLISM","HALLMARK_HYPOXIA","HALLMARK_OXIDATIVE_PHOSPHORYLATION",
+                      "HALLMARK_APOPTOSIS","HALLMARK_TNFA_SIGNALING_VIA_NFKB","HALLMARK_ANGIOGENESIS",
+                      "HALLMARK_E2F_TARGETS", "HALLMARK_G2M_CHECKPOINT","HALLMARK_NOTCH_SIGNALING",
+                      "HALLMARK_INFLAMMATORY_RESPONSE"
+)]
+names(genesets)
+gs_used
+
+
+genesets<- msigdbr(species = "Homo sapiens", category = "C2",subcategory = "CP:KEGG")
+genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
+genesets <- split(genesets$gene_symbol, genesets$gs_name)
+names(genesets)
+gs_used2 <- genesets[c("KEGG_CELL_CYCLE","KEGG_APOPTOSIS","KEGG_ADHERENS_JUNCTION",
+                       "KEGG_ANTIGEN_PROCESSING_AND_PRESENTATION","KEGG_JAK_STAT_SIGNALING_PATHWAY" ,"KEGG_VEGF_SIGNALING_PATHWAY","KEGG_WNT_SIGNALING_PATHWAY","KEGG_TOLL_LIKE_RECEPTOR_SIGNALING_PATHWAY",
+                       "KEGG_CELL_ADHESION_MOLECULES_CAMS","KEGG_DNA_REPLICATION","KEGG_FOCAL_ADHESION","KEGG_FATTY_ACID_METABOLISM","KEGG_ECM_RECEPTOR_INTERACTION"
+                       
+)]
+tt <- c(gs_used, gs_used2)
+
+#t8sce@meta.data <- t8sce@meta.data[-c(23:25)]
+DefaultAssay(t8sce) <- "RNA"
+cd_features <- list(c("CCR7","TCF7","LEF1","SELL"#'Naive_Score'
+))
+names(cd_features) <- 'Naive_Score'
+tt <- c(tt,cd_features)
+
+cd_features <- list(c("PDCD1","TIGIT","LAG3","HAVCR2","CTLA4"#'Exhausted_Score'
+))
+names(cd_features) <- 'Exhausted_Score'
+tt <- c(tt,cd_features)
+
+
+cd_features <- list(c("NKG7","PRF1","CCL4","GZMA","GZMB","CST7","IFNG","GZMK"#'Cytotoxic_Score',"FGFBP2"
+))
+names(cd_features) <- 'Cytotoxic_Score'
+tt <- c(tt,cd_features)
+
+cd_features <- list(c("MRC1","CD163","MERTK","C1QB","C1QA"
+))
+names(cd_features) <- 'Phagocytosis_score'
+tt <- c(tt,cd_features)
+
+
+
+
+DefaultAssay(t8sce) <- "RNA"
+#Stress
+a <-"FOS
+ATF3
+NR4A1
+DUSP1
+ZFP36
+PPP1R15A
+SGK1
+EGR1
+ZC3H12A
+JUNB
+FOSB
+IER2
+NFKBIA
+NFKBIZ
+HBEGF
+BTG2
+SOD2
+CDKN1A
+NCOA7
+JUN
+MYC
+SERTAD1
+CCNL1
+RND3
+PLK2
+SOCS3
+DNAJB1
+DUSP2
+TSC22D1
+KLF10
+GADD45B
+PMAIP1
+MAFF
+ERRFI1
+SLC38A2
+IRF1
+TOB1
+ID2
+KLF6
+DNAJA1
+TNFAIP3
+BHLHE40
+NXF1
+FOSL1
+IER3
+DUSP6
+HCAR2
+IL8
+CYR61
+EFNA1
+"
+cd_features <- strsplit(a,split = "\n") 
+
+names(cd_features) <- 'Stress'
+tt <- c(tt,cd_features)
+
+
+genesets <- tt
+#
+Idents(t8sce) <- "celltypegs" 
+expr <- AverageExpression(t8sce, assays = "RNA", slot = "data")[[1]]
+expr <- expr[rowSums(expr)>0,]  #
+expr <- as.matrix(expr)
+head(expr)
+
+gsva.res <- gsva(expr, genesets, method="gsva") 
+#saveRDS(gsva.res, "gsva.res.rds")
+gsva.df <- data.frame(Genesets=rownames(gsva.res), gsva.res, check.names = F)
+#write.csv(gsva.df, "gsva_res.csv", row.names = F)
+pdf("GSVA_28_gs_celltype.pdf",height = 7,width=6)
+pheatmap::pheatmap(gsva.res, show_colnames = T, cluster_cols=F,cluster_rows=F,	
+                   #scale = "row",
+                   angle_col = "90",
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+dev.off()
+
+genesets <- tt
+#
+Idents(t8sce) <- "type" 
+expr <- AverageExpression(t8sce, assays = "RNA", slot = "data")[[1]]
+expr <- expr[rowSums(expr)>0,]  #选取非零基因
+expr <- as.matrix(expr)
+head(expr)
+
+gsva.res <- gsva(expr, genesets, method="gsva") 
+#saveRDS(gsva.res, "gsva.res.rds")
+gsva.df <- data.frame(Genesets=rownames(gsva.res), gsva.res, check.names = F)
+#write.csv(gsva.df, "gsva_res.csv", row.names = F)
+pdf("GSVA_28_gs_type.pdf",height = 7,width=5)
+pheatmap::pheatmap(gsva.res, show_colnames = T, cluster_cols=F,cluster_rows=F,	
+                   #scale = "row",
+                   angle_col = "45",
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+dev.off()
+#genesets_used####
+#
+genesets <- msigdbr(species = "Homo sapiens", category = "H") 
+genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
+genesets <- split(genesets$gene_symbol, genesets$gs_name)
+names(genesets)
+gs_used <- genesets[c("HALLMARK_ADIPOGENESIS","HALLMARK_FATTY_ACID_METABOLISM","HALLMARK_HYPOXIA","HALLMARK_OXIDATIVE_PHOSPHORYLATION","HALLMARK_GLYCOLYSIS",
+                      "HALLMARK_APOPTOSIS","HALLMARK_TNFA_SIGNALING_VIA_NFKB","HALLMARK_ANGIOGENESIS",
+                      "HALLMARK_E2F_TARGETS", "HALLMARK_G2M_CHECKPOINT","HALLMARK_NOTCH_SIGNALING",
+                      "HALLMARK_INFLAMMATORY_RESPONSE"
+)]
+names(genesets)
+gs_used
+
+
+genesets<- msigdbr(species = "Homo sapiens", category = "C2",subcategory = "CP:KEGG")
+genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
+genesets <- split(genesets$gene_symbol, genesets$gs_name)
+names(genesets)
+gs_used2 <- genesets[c("KEGG_CELL_CYCLE","KEGG_APOPTOSIS","KEGG_ADHERENS_JUNCTION",
+                       "KEGG_ANTIGEN_PROCESSING_AND_PRESENTATION","KEGG_JAK_STAT_SIGNALING_PATHWAY" ,"KEGG_VEGF_SIGNALING_PATHWAY","KEGG_WNT_SIGNALING_PATHWAY","KEGG_TOLL_LIKE_RECEPTOR_SIGNALING_PATHWAY",
+                       "KEGG_CELL_ADHESION_MOLECULES_CAMS","KEGG_DNA_REPLICATION","KEGG_FOCAL_ADHESION","KEGG_FATTY_ACID_METABOLISM","KEGG_ECM_RECEPTOR_INTERACTION"
+                       
+)]
+tt <- c(gs_used, gs_used2)
+
+#t8sce@meta.data <- t8sce@meta.data[-c(23:25)]
+DefaultAssay(t8sce) <- "RNA"
+cd_features <- list(c("CCR7","TCF7","LEF1","SELL"#'Naive_Score'
+))
+names(cd_features) <- 'Naive_Score'
+tt <- c(tt,cd_features)
+
+cd_features <- list(c("PDCD1","TIGIT","LAG3","HAVCR2","CTLA4"#'Exhausted_Score'
+))
+names(cd_features) <- 'Exhausted_Score'
+tt <- c(tt,cd_features)
+
+
+cd_features <- list(c("NKG7","PRF1","CCL4","GZMA","GZMB","CST7","IFNG","GZMK"#'Cytotoxic_Score',"FGFBP2"
+))
+names(cd_features) <- 'Cytotoxic_Score'
+tt <- c(tt,cd_features)
+
+DefaultAssay(t8sce) <- "RNA"
+#Stress
+a <-"FOS
+ATF3
+NR4A1
+DUSP1
+ZFP36
+PPP1R15A
+SGK1
+EGR1
+ZC3H12A
+JUNB
+FOSB
+IER2
+NFKBIA
+NFKBIZ
+HBEGF
+BTG2
+SOD2
+CDKN1A
+NCOA7
+JUN
+MYC
+SERTAD1
+CCNL1
+RND3
+PLK2
+SOCS3
+DNAJB1
+DUSP2
+TSC22D1
+KLF10
+GADD45B
+PMAIP1
+MAFF
+ERRFI1
+SLC38A2
+IRF1
+TOB1
+ID2
+KLF6
+DNAJA1
+TNFAIP3
+BHLHE40
+NXF1
+FOSL1
+IER3
+DUSP6
+HCAR2
+IL8
+CYR61
+EFNA1
+"
+cd_features <- strsplit(a,split = "\n") 
+
+names(cd_features) <- 'Stress'
+tt <- c(tt,cd_features)
+
+#Activation
+a <-"FAS
+FASLG
+CD44
+CD69
+CD38
+NKG7
+KLRB1
+KLRD1
+KLRF1
+KLRG1
+KLRK1
+FCGR3A
+CX3CR1
+CD300A
+FGFBP2
+ID2
+ID3
+PRDM1
+RUNX3
+TBX21
+ZEB2
+BATF
+IRF4
+NR4A1
+NR4A2
+NR4A3
+PBX3
+ZNF683
+HOPX
+FOS
+FOSB
+JUN
+JUNB
+JUND
+STAT1
+STAT2
+STAT5A
+STAT6
+STAT4
+EOMES
+"
+cd_features <- strsplit(a,split = "\n") 
+
+names(cd_features) <- 'Activation'
+tt <- c(tt,cd_features)
+
+genesets <- tt
+#GSVA富集分析#
+Idents(t8sce) <- "celltype" 
+expr <- AverageExpression(t8sce, assays = "RNA", slot = "data")[[1]]
+expr <- expr[rowSums(expr)>0,]  #选取非零基因
+expr <- as.matrix(expr)
+head(expr)
+
+gsva.res <- gsva(expr, genesets, method="gsva") 
+#saveRDS(gsva.res, "gsva.res.rds")
+gsva.df <- data.frame(Genesets=rownames(gsva.res), gsva.res, check.names = F)
+#write.csv(gsva.df, "gsva_res.csv", row.names = F)
+pdf("GSVA_28_gs_celltype.pdf",height = 7,width=6.5)
+pheatmap::pheatmap(gsva.res, show_colnames = T, cluster_cols=F,cluster_rows=F,	
+                   #scale = "row",
+                   angle_col = "90",
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+dev.off()
+
+
+
+genesets <- tt
+#
+Idents(t8sce) <- "type" 
+expr <- AverageExpression(t8sce, assays = "RNA", slot = "data")[[1]]
+expr <- expr[rowSums(expr)>0,] #
+expr <- as.matrix(expr)
+head(expr)
+
+gsva.res <- gsva(expr, genesets, method="gsva") 
+#saveRDS(gsva.res, "gsva.res.rds")
+gsva.df <- data.frame(Genesets=rownames(gsva.res), gsva.res, check.names = F)
+#write.csv(gsva.df, "gsva_res.csv", row.names = F)
+pdf("GSVA_28_gs_type.pdf",height = 7,width=5)
+pheatmap::pheatmap(gsva.res, show_colnames = T, cluster_cols=F,cluster_rows=F,	
+                   #scale = "row",
+                   angle_col = "45",
+                   color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
+dev.off()
+
+#celltype_score####
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Exhausted_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Exhausted_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Exhausted_Score, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+View(as)
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Exhausted_Score",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Exhausted_Score_celltype.pdf",width = 3,height = 6) 
+
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Cytotoxic_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Cytotoxic_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Cytotoxic_Score, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Cytotoxic_Score",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Cytotoxic_Score_celltype.pdf",width = 3,height = 6) 
+
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Naive_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Naive_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Naive_Score, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Naive_Score",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Naive_Score_celltype.pdf",width = 3,height = 6) 
+
+
+#Activation####
+DefaultAssay(t8sce) <- "RNA"
+a <-"FAS
+FASLG
+CD44
+CD69
+CD38
+NKG7
+KLRB1
+KLRD1
+KLRF1
+KLRG1
+KLRK1
+FCGR3A
+CX3CR1
+CD300A
+FGFBP2
+ID2
+ID3
+PRDM1
+RUNX3
+TBX21
+ZEB2
+BATF
+IRF4
+NR4A1
+NR4A2
+NR4A3
+PBX3
+ZNF683
+HOPX
+FOS
+FOSB
+JUN
+JUNB
+JUND
+STAT1
+STAT2
+STAT5A
+STAT6
+STAT4
+EOMES
+"
+cd_features <- strsplit(a,split = "\n") 
+
+
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Activation")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Activation'
+
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Activation',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Activation',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Activation, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Activation",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Activation_celltype.pdf",width = 3,height = 6) 
+
+#Activation_type####
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+P<-VlnPlot(t8sce,features = 'Activation',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Activation',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+
+#box plot
+my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
+ggboxplot(P$data,x = "ident",y = "Activation",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("Activation_box.pdf",width = 2,height = 4) 
+
+
+
+#IFN_Response####
+DefaultAssay(t8sce) <- "RNA"
+a <-"IFIT1
+IFIT2
+IFIT3
+IFIT5
+STAT1
+STAT2
+MX1
+IRF1
+IRF4
+IRF7
+IRF8
+IRF9
+ISG15
+ISG20
+IFITM1
+IFITM2
+IFITM3
+OAS1
+OAS2
+OAS3
+JAK1
+JAK2
+SOCS1
+SOCS3
+TRIM14
+TRIM21
+TRIM22
+APOL1
+APOL2
+APOL6
+IFNGR1
+GBP1
+GBP2
+GBP4
+GBP5
+GBP3
+BST2
+CMPK2
+DDX58
+DDX60
+DDX60L
+IFI30
+IFI35
+IFI44
+IFI44L
+IFI6
+IFIH1
+PARP10
+PARP12
+PARP14
+"
+cd_features <- strsplit(a,split = "\n") 
+
+
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "IFN_Response")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'IFN_Response'
+
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'IFN_Response',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'IFN_Response',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$IFN_Response, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "IFN_Response",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("IFN_Response_celltype.pdf",width = 3,height = 6) 
+
+#IFN_Response_type####
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+P<-VlnPlot(t8sce,features = 'IFN_Response',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'IFN_Response',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+
+#box plot
+my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
+ggboxplot(P$data,x = "ident",y = "IFN_Response",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("IFN_Response_box.pdf",width = 2,height = 4) 
+
+#Terminal_differentiation####
+DefaultAssay(t8sce) <- "RNA"
+a <-"TOX
+PDCD1
+CTLA4
+LAG3
+TIGIT
+LAYN
+ENTPD1
+HAVCR2
+GZMB
+CTSW
+ITGAE
+PRF1
+DUSP4
+"
+cd_features <- strsplit(a,split = "\n") 
+
+
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Terminal_differentiation")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Terminal_differentiation'
+
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Terminal_differentiation',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Terminal_differentiation',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Terminal_differentiation, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Terminal_differentiation",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Terminal_differentiation_celltype.pdf",width = 3,height = 6) 
+
+#Terminal_differentiation_type####
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+P<-VlnPlot(t8sce,features = 'Terminal_differentiation',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Terminal_differentiation',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+
+#box plot
+my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
+ggboxplot(P$data,x = "ident",y = "Terminal_differentiation",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("Terminal_differentiation_box.pdf",width = 2,height = 4) 
+
+#Stress####
+DefaultAssay(t8sce) <- "RNA"
+a <-"FOS
+ATF3
+NR4A1
+DUSP1
+ZFP36
+PPP1R15A
+SGK1
+EGR1
+ZC3H12A
+JUNB
+FOSB
+IER2
+NFKBIA
+NFKBIZ
+HBEGF
+BTG2
+SOD2
+CDKN1A
+NCOA7
+JUN
+MYC
+SERTAD1
+CCNL1
+RND3
+PLK2
+SOCS3
+DNAJB1
+DUSP2
+TSC22D1
+KLF10
+GADD45B
+PMAIP1
+MAFF
+ERRFI1
+SLC38A2
+IRF1
+TOB1
+ID2
+KLF6
+DNAJA1
+TNFAIP3
+BHLHE40
+NXF1
+FOSL1
+IER3
+DUSP6
+HCAR2
+IL8
+CYR61
+EFNA1
+"
+cd_features <- strsplit(a,split = "\n") 
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Stress")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Stress'
+
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Stress',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Stress',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Stress, df$ident, mean))#
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Stress",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Stress_celltype.pdf",width = 3,height = 6) 
+
+#Resident_score####
+DefaultAssay(t8sce) <- "RNA"
+a <-"TUBA1B
+TUBA1A
+TUBB
+TUBB4B
+S100A4
+LGALS1
+S100A10
+VIM
+TUBB
+ANXA2
+ANXA1
+PLP2
+LGALS3
+AMICA1
+ITGA1
+ITGAE
+"
+cd_features <- strsplit(a,split = "\n") 
+
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Resident_score'
+#t8sce@meta.data <- t8sce@meta.data[-32]
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'Resident_score',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'Resident_score',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$Resident_score, df$ident, mean))#分组求均值
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#按照均值排序
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "Resident_score",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("Resident_score_celltype_rank.pdf",width = 3,height = 6) 
+
+#Resident_score_type####
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+P<-VlnPlot(t8sce,features = 'Resident_score',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Resident_score',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+
+#box plot
+my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
+ggboxplot(P$data,x = "ident",y = "Resident_score",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("Resident_score_box.pdf",width = 2,height = 4) 
+
+
+
+#KEGG_CELL_CYCLE####
+library(Seurat)
+library(msigdbr)
+library(GSVA)
+library(tidyverse)
+library(clusterProfiler)
+library(patchwork)
+library(limma)
+
+genesets<- msigdbr(species = "Homo sapiens", category = "C2",subcategory = "CP:KEGG")
+genesets <- subset(genesets, select = c("gs_name","gene_symbol")) %>% as.data.frame()
+genesets <- split(genesets$gene_symbol, genesets$gs_name)
+names(genesets)
+cd_features <- genesets[c("KEGG_CELL_CYCLE"
+)]
+
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "CELL_CYCLE")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'CELL_CYCLE'
+colnames(t8sce@meta.data)
+
+names(t8sce@meta.data)
+P<-VlnPlot(t8sce,features = 'CELL_CYCLE',
+           pt.size = 0, adjust = 2,
+           group.by = "celltype")
+
+VlnPlot(t8sce,features = 'CELL_CYCLE',
+        pt.size = 0, adjust = 2,
+        group.by = "celltype")
+table(P$data[,2])
+df <- P$data
+a <- as.data.frame(tapply(df$CELL_CYCLE, df$ident, mean))#分组求均值
+colnames(a)[1] <- "means"
+as <- data.frame(means=a[order(a$means),],cellname=rownames(a)[order(a$means)])
+
+df2 <- P$data
+df2$ident <- factor(df2$ident,levels = rownames(a)[order(a$means)])#按照均值排序
+levels(df2$ident)
+#box plot
+ggboxplot(df2,x = "ident",y = "CELL_CYCLE",color = "ident")+theme(axis.text.x = element_text(angle = 90)) 
+ggsave("CELL_CYCLE_celltype.pdf",width = 3,height = 6) 
+
+##
+genes_to_check = c("GZMK","DTHD1","CMC1","AOAH","LYST", "CEMIP2",
+                   "CCL20","KLRB1","IL7R","CEBPD",
+                   "XCL1",
+                   "KLRC2",
+                   "ZNF683",
+                   "KLRD1",
+                   "GNLY",
+                   "CXCL13","RBPJ", "GZMB","HAVCR2","TOX","ITGAE",
+                   "LMNA", "CCR7","BACH2","GPR183","ANK3",
+                                    
+                   "GZMB",
+                   "GZMH",
+                   "NKG7",
+                   "CD52",
+                   "RAP1GAP2",
+                   
+                   "STMN1",
+                   "HIST1H4C",
+                   "MKI67",
+                   "TUBA1B",
+                   "HMGB2",
+                   "TOP2A",
+                   
+                   "SLC4A10",
+                   "PLCB1",
+                   "ZBTB16",
+                   "AFF3",
+                   "ME1",
+                   "IL17A",
+                   
+                   "DAPK2",
+                   "ANKRD28",
+                   "IGKC",
+                   "IL26","CD69",
+                   
+                   "IFIT2",
+                   "ISG15",
+                   "IFIT3",
+                   "MX1",
+                   "IFIT1",
+                   "IFI6"
+                   
+)
+#
+DotPlot(t8sce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype' )+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)+theme(axis.text.x = element_text(angle = 90)) 
+name="CD8T_cell"
+ggsave(paste0(name,"_markers_by_celltype.pdf"),width = 14,height =3.5)
+
+
+
+#monocle2#####
+#
+DefaultAssay(t8sce) <- "RNA"#
+table(t8sce$celltype)
+t8sce <- subset(t8sce, cells = colnames(t8sce)[which(t8sce$celltype %in% c('CD8+T_c01_Effector_GZMK',
+                                                                           'CD8+T_c02_NKlike_GNLY',
+                                                                           "CD8+T_c04_Exhausted_LAG3hi",
+                                                                           "CD8+T_c05_Naive_NELL2",
+                                                                           "CD8+T_c06_NKlike_XCL1",
+                                                                           "CD8+T_c07_Exhausted_LAG3lo","CD8+T_c08_Prolif_MKI67",
+                                                                           "CD8+T_c09_IFNR_IFIT1"))])
+table(t8sce$celltype)
+#
+library(dplyr)
+df <- as.data.frame(t8sce@meta.data)
+#查看原本多少
+table(df$celltype)
+#
+df <- data.frame(cell_id =rownames(df),df)
+df <- df %>% group_by(celltype) %>% sample_frac(size = .5)
+#
+table(df$celltype)
+cells.use <- df$cell_id
+length(cells.use)
+t8sce <- subset(t8sce, cells = cells.use)
+
+library(monocle)
+#
+expr_matrix <- as(as.matrix(t8sce@assays$RNA@counts), 'sparseMatrix')
+#
+p_data <- t8sce@meta.data 
+Idents(t8sce) <- t8sce$celltype
+table(t8sce@active.ident)
+p_data$celltype <- t8sce@active.ident  #
+#
+f_data <- data.frame(gene_short_name = row.names(t8sce),row.names = row.names(t8sce))
+#
+#
+pd <- new('AnnotatedDataFrame', data = p_data) 
+fd <- new('AnnotatedDataFrame', data = f_data)
+#
+cds <- newCellDataSet(expr_matrix,
+                      phenoData = pd,
+                      featureData = fd,
+                      lowerDetectionLimit = 0.5,
+                      expressionFamily = negbinomial.size())
+cds <- estimateSizeFactors(cds)
+cds <- estimateDispersions(cds)
+#
+cds <- detectGenes(cds, min_expr = 0.1) #
+print(head(fData(cds)))#
+expressed_genes <- row.names(subset(fData(cds),num_cells_expressed >= 10)) #
+
+##
+express_genes <- VariableFeatures(t8sce)
+cds <- setOrderingFilter(cds, express_genes)
+plot_ordering_genes(cds)
+#
+Idents(t8sce)
+deg.cluster <- FindAllMarkers(t8sce)
+express_genes <- subset(deg.cluster,p_val_adj<0.05)$gene
+cds <- setOrderingFilter(cds, express_genes)
+plot_ordering_genes(cds)
+#
+disp_table <- dispersionTable(cds)
+express_genes <- subset(disp_table, mean_expression >= 0.1 & dispersion_empirical >= 1 * dispersion_fit)$gene_id
+cds <- setOrderingFilter(cds, express_genes)
+plot_ordering_genes(cds)
+
+#
+
+diff <- differentialGeneTest(cds[express_genes,],fullModelFormulaStr="~celltype",cores=1)
+diff <- differentialGeneTest(cds[expressed_genes,],fullModelFormulaStr="~celltype",cores=1)
+#
+head(diff)
+nrow(diff)
+#
+deg <- subset(diff, qval < 0.01) #
+deg <- deg[order(deg$qval,decreasing=F),]
+head(deg)
+nrow(diff)
+#
+write.csv(deg,file="train.monocle.DEG.csv")
+
+#
+ordergene <- rownames(deg) 
+cds <- setOrderingFilter(cds, ordergene)  
+table(cds@featureData@data[["use_for_ordering"]])
+#
+plot_ordering_genes(cds)
+ggsave("train.order.genes.pdf")
+#
+ordergene <- row.names(deg)[order(deg$qval)][1:2000]
+#
+cds <- reduceDimension(cds, max_components = 2,
+                       method = 'DDRTree',cores =4
+                       #,num_dim=3
+                       #,residualModelFormulaStr = "~patient_id" #
+)
+
+memory.limit(1000000000)
+gc()
+
+save(cds,file="cds1.Rdata")
+cds <- orderCells(cds)
+cds <- orderCells(cds, root_state = 4)
+save(cds,file="cds2_4.Rdata")
+load("cds2_4.Rdata")
+
+cds <- orderCells(cds, num_paths=3)#
+save(cds,file="cds2.Rdata")
+load("cds2.Rdata")
+cds <- orderCells(cds, num_paths=3)#
+gc()
+plot_cell_trajectory(cds,color_by="Pseudotime", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+ scale_color_gradientn(colors = c("#24ABAE","#E8BD27","#CF254A"))
+ggsave("monocle2.pseudotime_p1.pdf",height = 6,width = 6)
+
+colour=c("#DD1F4D","#F2C31C","#A0C53B","#2F89CA",)
+colour=c("#2F89CA","#F2C31C","#DD1F4D","#FFA500","#9370DB",#1-5
+         "#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",#6-10
+         "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3",#11-15
+         "#800080","#A0522D","#D2B48C","#D2691E","#87CEEB",#16-20
+         "#40E0D0","#5F9EA0","#063A94","#0000CD","#008B8B",#21-25
+         "#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4",
+         "#32CD32","#F0E68C","#FFFFE0","#EE82EE","#FF6347",
+         "#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+plot_cell_trajectory(cds,color_by="celltype", size=1,show_backbone=TRUE)+ scale_color_manual(values = colour)+theme(aspect.ratio = 1)
+ggsave("monocle_celltype_p2.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds, color_by = "State",size=1,show_backbone=TRUE)
+ggsave("train.State.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds, color_by = "CCA_snn_res.3",show_backbone=TRUE)
+ggsave("train.seurat_CCA_snn_res.3.pdf",height = 6,width = 6)
+colour=c("#24ABAE","#E8BD27","#CF254A")
+plot_cell_trajectory(cds, color_by = "type",show_backbone=TRUE)+ scale_color_manual(values = colour)+theme(aspect.ratio = 1)
+ggsave("monocle_type_p3.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds,color_by="Cytotoxic_Score", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("monocle_Cytotoxic_Score_p4.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds,color_by="Naive_Score", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("monocle_Naive_Score_p5.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds,color_by="Exhausted_Score", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("monocle_Exhausted_Score_p6.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds,color_by="Stress", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("monocle_Stress_p7.pdf",height = 6,width = 6)
+plot_cell_trajectory(cds,color_by="CELL_CYCLE", size=1,show_backbone=TRUE) +theme(aspect.ratio = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+ggsave("monocle_CELL_CYCLE_p8.pdf",height = 6,width = 6)
+#
+plot_cell_trajectory(cds, color_by = "State") +theme(aspect.ratio = 1)+ facet_wrap("~State", nrow = 1)
+ggsave("monocle2_state_split.pdf",height = 6,width = 30)
+plot_cell_trajectory(cds, color_by = "celltype")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+ scale_color_manual(values = colour)
+ggsave("monocle2_celltype_split.pdf",height = 6,width = 24)
+plot_cell_trajectory(cds, color_by = "CCA_snn_res.3")+theme(aspect.ratio = 1) + facet_wrap("~CCA_snn_res.3", nrow = 3)
+ggsave("monocle2_RNA_snn_res.2_split.pdf",height = 18,width = 18)
+plot_cell_trajectory(cds, color_by = "type")+theme(aspect.ratio = 1) + facet_wrap("~type", nrow = 1)+ scale_color_manual(values = colour)
+ggsave("monocle2_type_split.pdf",height = 6,width = 12)
+plot_cell_trajectory(cds, color_by = "Cytotoxic_Score")+theme(aspect.ratio = 1) + facet_wrap("~type", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+plot_cell_trajectory(cds, color_by = "Cytotoxic_Score")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+plot_cell_trajectory(cds, color_by = "Exhausted_Score")+theme(aspect.ratio = 1) + facet_wrap("~type", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+plot_cell_trajectory(cds, color_by = "Exhausted_Score")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+plot_cell_trajectory(cds, color_by = "Naive_Score")+theme(aspect.ratio = 1) + facet_wrap("~type", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+plot_cell_trajectory(cds, color_by = "Naive_Score")+theme(aspect.ratio = 1) + facet_wrap("~celltype", nrow = 1)+scale_color_gradient2(low="black",high="red",mid="white",midpoint = 0)
+
+#
+library(ggsci)
+p1=plot_cell_trajectory(cds, color_by = "celltype")  + scale_color_npg() 
+p2=plot_cell_trajectory(cds, color_by = "State")  + scale_color_nejm()
+colour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080")
+p3=plot_cell_trajectory(cds, color_by = "CCA_snn_res.3")  + scale_color_manual(values = colour)
+p1|p2|p3
+colour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#2F89CA","#F2C31C")
+colour=c("#DC143C","#0000FF","#20B2AA","#FFA500","#9370DB","#98FB98","#F08080","#1E90FF","#7CFC00","#FFFF00",
+         "#808000","#FF00FF","#FA8072","#7B68EE","#9400D3","#800080","#A0522D","#D2B48C","#D2691E","#87CEEB","#40E0D0","#5F9EA0",
+         "#FF1493","#0000CD","#008B8B","#FFE4B5","#8A2BE2","#228B22","#E9967A","#4682B4","#32CD32","#F0E68C","#FFFFE0","#EE82EE",
+         "#FF6347","#6A5ACD","#9932CC","#8B008B","#8B4513","#DEB887")
+#
+p1 <- plot_cell_trajectory(cds, x = 1, y = 2, color_by = "celltype") + 
+  theme(legend.position='none',panel.border = element_blank()) + 
+  scale_color_manual(values = colour) 
+p2 <- plot_complex_cell_trajectory(cds, x = 1, y = 2,
+                                   color_by = "celltype")+
+  scale_color_manual(values = colour) +
+  theme(legend.title = element_blank()) 
+p1|p2
+
+p3 <- plot_cell_trajectory(cds, x = 1, y = 2, color_by = "type") + 
+  theme(legend.position='none',panel.border = element_blank()) + 
+  scale_color_manual(values = colour) 
+p4 <- plot_complex_cell_trajectory(cds, x = 1, y = 2,
+                                   color_by = "type")+
+  scale_color_manual(values = colour) +
+  theme(legend.title = element_blank()) 
+p3|p4
+
+p2|p4
+#
+library(ggpubr)
+names(t8sce@meta.data)
+cds@phenoData@data$Naive_Score <- t8sce$Naive_Score
+cds@phenoData@data$Exhausted_Score <- t8sce$Exhausted_Score
+cds@phenoData@data$Cytotoxic_Score <- t8sce$Cytotoxic_Score
+cds@phenoData@data$Resident_score <- t8sce$Resident_score
+cds@phenoData@data$Stress <- t8sce$Stress
+cds@phenoData@data$CELL_CYCLE <- t8sce$CELL_CYCLE
+df <- pData(cds) #
+table(df$State,df$celltype)
+table(df$State,df$type)
+
+#
+require(viridis)#
+require(tidyr)#
+library(ggthemes)
+library(ggplot2)
+library(hrbrthemes)
+library(ggsci)
+library(ggpubr)
+library(ggridges)
+library(Seurat)
+library(purrr)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(ggridges)
+library(RColorBrewer)
+library(viridis)
+table(df$celltype)
+df$type <- factor(df$type,levels = c("N","J","T"))
+df$celltype <- factor(df$celltype,levels =c("CD8+T_c05_Naive_NELL2", "CD8+T_c02_NKlike_GNLY","CD8+T_c01_Effector_GZMK","CD8+T_c09_IFNR_IFIT1","CD8+T_c06_NKlike_XCL1",
+                                           "CD8+T_c07_Exhausted_LAG3lo","CD8+T_c04_Exhausted_LAG3hi","CD8+T_c08_Prolif_MKI67") )
+#plot1_type
+ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
+  geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()+
+  facet_wrap(~type)
+ggsave("waveplot_celltype_split.pdf",height = 6,width = 8)
+#plot2_type
+ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
+  geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()
+ggsave("waveplot_type.pdf",height = 6,width = 8)
+#plot3_type
+ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
+  geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()+
+  facet_wrap(~type)
+ggsave("waveplot_type.pdf",height = 6,width = 8)
+#plot4_type
+ggplot(df,aes(x=Pseudotime,group=type,fill=type))+
+  geom_density(alpha=1,adjust=1.5,position = 'fill')+
+  theme_ipsum()+
+  scale_fill_viridis(discrete = T,alpha = 0.3)
+ggsave("density_type.pdf",height = 3,width = 4)
+ggplot(df, aes(x = Pseudotime, y = type, fill = type)) +
+  geom_density_ridges(alpha = 0.5) +
+  theme_ridges() + 
+  theme(legend.position = "none")+scale_fill_viridis(discrete = T,alpha = 0.3)+
+  scale_color_viridis_d()
+ggsave("density_type.pdf",height = 3,width = 4)
+
+#plot2_celltype
+ggplot(df,aes(x=Pseudotime,group=celltype,fill=celltype))+
+  geom_density(alpha=1,adjust=1.5,position = 'fill')+
+  theme_ipsum()+
+  scale_fill_viridis(discrete = T,alpha = 0.3)+
+  scale_color_viridis_d()
+
+ggplot(df, aes(x = Pseudotime, y = celltype, fill = celltype)) +
+  geom_density_ridges(alpha = 0.5) +
+  theme_ridges() + 
+  theme(legend.position = "none")+scale_fill_viridis(discrete = T,alpha = 0.3)+
+  scale_color_viridis_d()
+ggsave("density_celltype.pdf",height = 3,width = 5)
+ggplot(df, aes(Pseudotime, colour = celltype, fill=celltype)) +
+  geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()
+ggsave("waveplot_celltype.pdf",height = 6,width = 8)
+
+ggplot(df, aes(Pseudotime, colour = type, fill=type)) +
+  geom_density(bw=0.5,size=1,alpha = 0.5)+theme_classic2()
+ggsave("waveplot_celltype.pdf",height = 6,width = 8)
+#pseudo线图#
+dat <- cds@phenoData@data
+ggplot(dat,aes(Pseudotime,Stress,fill=Pseudotime))+
+  geom_point(size=4)+
+  geom_smooth(method= "gam")
+
+ggplot(dat,aes(Pseudotime,Stress,fill=celltype))+
+  geom_point(size=3,alpha =0.2,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=T
+  )
+
+ggplot(dat,aes(Pseudotime,Naive_Score,fill=celltype))+
+  geom_point(size=3,alpha =0.2,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=T
+  )
+
+ggplot(dat,aes(Pseudotime,Stress))+
+  geom_point(size=3,alpha =0,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=F
+  )
+ggsave("Stress_Pseudotime.pdf",width = 4,height = 4)
+
+ggplot(dat,aes(Pseudotime,Naive_Score))+
+  geom_point(size=3,alpha =0,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=F
+  )
+ggsave("Naive_Score_Pseudotime.pdf",width = 4,height = 4)
+
+ggplot(dat,aes(Pseudotime,Cytotoxic_Score))+
+  geom_point(size=3,alpha =0,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=F
+  )
+ggsave("Cytotoxic_Score_Pseudotime.pdf",width = 4,height = 4)
+
+ggplot(dat,aes(Pseudotime,Exhausted_Score))+
+  geom_point(size=3,alpha =0,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=F
+  )
+ggsave("Exhausted_Score_Pseudotime.pdf",width = 4,height = 4)
+
+ggplot(dat,aes(Pseudotime,CELL_CYCLE))+
+  geom_point(size=3,alpha =0.2,colour = "grey")+
+  geom_smooth(method= "loess",color="red",
+              span=0.8,
+              se=F
+  )
+ggsave("CELL_CYCLE_Pseudotime.pdf",width = 4,height = 4)
+
+#sava files
+save(cds,file="cds.Rdata")
+
+
+#GZMB####
+genes_to_check = c("PDCD1","CXCL13","PDCD1","GZMB","GZMA",
+                   "GZMK","TOX","CD39","CD8B","TNF","IFNG","CD28","CCL5","CD3D","CD3E","CD69"
+)
+DotPlot(t8sce, 
+        features = unique(genes_to_check),
+        assay='RNA',
+        group.by = 'celltype',
+        cols = c("white", "red"))+
+  theme(axis.text.x = element_text(angle = 45,
+                                   vjust = 0.5, 
+                                   hjust=0.5)) 
+th=theme(axis.text.x = element_text(angle = 90)) 
+DotPlot(t8sce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='celltype')+scale_color_gradient2(low="#0868F4",high="red",mid="white",midpoint = 0)+theme(axis.text.x = element_text(angle = 90, 
+                                                                                                                                                     vjust = 0.5, hjust=0.5)) 
+ggsave("TNK_IFNG_by_celltype.pdf",width =7.2,height =3.6)
+
+#scoring####
+DefaultAssay(t8sce) <- "RNA"
+cd_features <- list(c("CCR7","TCF7","LEF1","SELL"#'Naive_Score'
+))
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Naive_Score")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Naive_Score'
+colnames(t8sce@meta.data)
+
+cd_features <- list(c("PDCD1","TIGIT","LAG3","HAVCR2","CTLA4"#'Exhausted_Score'
+))
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Exhausted_Score")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Exhausted_Score'
+colnames(t8sce@meta.data)
+
+cd_features <- list(c("NKG7","PRF1","GZMA","GZMB","GZMK","GZMH"#'Cytotoxic_Score',"FGFBP2"
+))
+t8sce <- AddModuleScore(t8sce,features = cd_features,ctrl = 100,name = "CD_Features")
+colnames(t8sce@meta.data)
+t8sce@meta.data <-t8sce@meta.data[which(!colnames(t8sce@meta.data) %in% "Cytotoxic_Score")]
+colnames(t8sce@meta.data)[which(colnames(t8sce@meta.data) %in% "CD_Features1")] <- 'Cytotoxic_Score'
+colnames(t8sce@meta.data)
+
+# scoring
+VlnPlot(t8sce,features = 'Naive_Score',pt.size = 0, adjust = 2,group.by = "celltype")
+ggsave("Naive_Score_vlin_celltype.pdf",width = 4,height = 4) 
+VlnPlot(t8sce,features = 'Naive_Score',pt.size = 0, adjust = 2,group.by = "celltype",split.by = "type")
+ggsave("Naive_Score_vlin_celltype_spt_type.pdf",width = 6,height = 4) 
+VlnPlot(t8sce,features = 'Cytotoxic_Score',pt.size = 0, adjust = 2,group.by = "celltype")
+ggsave("Cytotoxic_Score_vlin_celltype.pdf",width = 4,height = 4) 
+VlnPlot(t8sce,features = 'Cytotoxic_Score',pt.size = 0, adjust = 2,group.by = "celltype",split.by = "type")
+ggsave("Cytotoxic_Score_vlin_celltype_spt_type.pdf",width = 6,height = 4) 
+VlnPlot(t8sce,features = 'Exhausted_Score',pt.size = 0, adjust = 2,group.by = "celltype")
+ggsave("Exhausted_Score_vlin_celltype.pdf",width = 4,height = 4) 
+VlnPlot(t8sce,features = 'Exhausted_Score',pt.size = 0, adjust = 2,group.by = "celltype",split.by = "type")
+ggsave("Exhausted_Score_vlin_celltype_spt_type.pdf",width = 6,height = 4) 
+VlnPlot(t8sce,features = 'Naive_Score',pt.size = 0, adjust = 2,group.by = "type")
+VlnPlot(t8sce,features = 'Exhausted_Score',pt.size = 0, adjust = 2,group.by = "type")
+VlnPlot(t8sce,features = 'Cytotoxic_Score',pt.size = 0, adjust = 2,group.by = "type")
+library(ggplot2)
+
+#plotting
+#exhausted_score
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+P<-VlnPlot(t8sce,features = 'Exhausted_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Exhausted_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+
+#box plot
+my_comparisons = list( c("J", "N"),c("J", "T"),c("T", "N"))
+ggboxplot(P$data,x = "ident",y = "Exhausted_Score",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("Exhausted_Score_box.pdf",width = 2,height = 4) 
+
+
+#naive_score
+P<-VlnPlot(t8sce,features = 'Naive_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Naive_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+#boxing plot
+ggboxplot(P$data,x = "ident",y = "Naive_Score",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+ggsave("Naive_Score_box.pdf",width = 2,height = 4)
+
+#cytoxic_score
+P<-VlnPlot(t8sce,features = 'Cytotoxic_Score',
+           pt.size = 0, adjust = 2,
+           group.by = "type")
+
+VlnPlot(t8sce,features = 'Cytotoxic_Score',
+        pt.size = 0, adjust = 2,
+        group.by = "type")
+table(P$data[,2])
+#
+P$data %>%
+  group_by(ident) %>%
+  summarize(mean_value = mean(Cytotoxic_Score))
+
+
+#box plot
+ggboxplot(P$data,x = "ident",y = "Cytotoxic_Score",color = "ident",palette =c("#24ABAE", "#E8BD27", "#CF254A"))+
+  stat_compare_means(comparisons = my_comparisons, method = "t.test",label = "p.signif",
+                     symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1), 
+                                      symbols = c("***", "**", "*", "ns"))
+  )
+
+ggsave("Cytotoxic_Score_box.pdf",width = 2,height = 4)
+#violin plot
+ggplot(P$data, aes(x=ident,y=Cytotoxic_Score,fill=ident)) + 
+  geom_violin()+stat_compare_means(comparisons = my_comparisons,
+                                   method = "wilcox.test",
+                                   label = "p.signif",
+                                   symnum.args=list(cutpoints = c(0, 0.001, 0.01, 0.05, 1),
+                                                    symbols = c("***", "**", "*", "ns")))+
+  geom_boxplot(width=0.1, color="black", alpha=0.2)+
+  scale_fill_manual(values=c(N = "blue", "T" = "orange", J="red" ))+
+  theme(
+    panel.grid.major=element_line(colour=NA),
+    panel.background = element_rect(fill = "transparent",colour = NA),
+    plot.background = element_rect(fill = "transparent",colour = NA),
+    #legend.key = element_blank(),
+    panel.grid.minor = element_blank()
+  )+theme_classic()
+ggsave("Cytotoxic_Score_vlin.pdf",width = 4,height = 4)
+
+# sce$scelltype <- sce$celltype
+table(t8sce$celltype)
+sce$scelltype[match(colnames(t8sce),colnames(sce))]<-t8sce$celltype%>%as.character()
+table(sce$scelltype)
+table(sce$celltype)
+
+#Other_CD8_T_cell####
+table(t8sce$celltype)
+t8sce$MAIT_group <- "Other_CD8_T_cell"
+
+t8sce$MAIT_group[which(t8sce$celltype%in%c("CD8+T_c10_MAIT_CCL20", 
+                                           "CD8+T_c03_MAIT_SLC4A10"))] <- "CD8_MAIT_cell"
+table(t8sce$MAIT_group)
+t8sce$celltype <- t8sce$MAIT_group
+
+#bar_plot####
+library(ggplot2)
+ggplot(t8sce@meta.data, aes(celltype, fill = type)) +
+  geom_bar(position = "fill", alpha = 0.9) +
+  scale_fill_manual(values = c("N" = "#24ABAE", "J" = "#E8BD27", "T" = "#CF254A")) +  
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90))
+ggsave("bar_plot.pdf",height = 3.5,width = 4)
+
+#CD8_EFFECTOR_markers####
+genes_to_check = c("PDCD1","CXCL13","PDCD1","GZMB","GZMA",
+                   "GZMK","TOX","CD39","TNF","IFNG","HIF1A"
+)
+
+#
+th=theme(axis.text.x = element_text(angle = 0)) 
+DotPlot(t8sce, features = unique(genes_to_check),
+        assay='RNA' ,group.by ='type')+
+  coord_flip()+
+  scale_color_gradient2(low="#0868F4",high="red",mid="white",midpoint = 0)+theme(axis.text.x = element_text(angle = 0, 
+                                                                                                            vjust = 0.5, hjust=0.5)) 
+ggsave("TNK_IFNG_by_type.pdf",width =4,height =3.0)
+
+#save files####
+save(t8sce,file="t8sce_marker.Rdata")
+setwd("D:\\leadtest\\immune\\tnk\\cd8")
+load("t8sce_marker.Rdata")
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+library(clustree)
+library(cowplot)
+library(dplyr)
+#
+save.image(file = "my_workspace.RData")
+load("my_workspace.RData")
+setwd("D:\\leadtest\\immune\\tnk\\cd8\\pyscenic")
+#
+library(dplyr)
+df <- as.data.frame(t8sce@meta.data)
+#
+table(df$celltype)
+#
+df <- data.frame(cell_id =rownames(df),df)
+df <- df %>% group_by(celltype) %>% sample_frac(size = .375)
+#
+table(df$celltype)
+cells.use <- df$cell_id
+length(cells.use)
+t8sce <- subset(t8sce, cells = cells.use)
+save(t8sce,file="t8sce_pyscenic.Rdata")
+write.csv(t(as.matrix(t8sce@assays$RNA@counts)), file = "t8sce.csv")
+
