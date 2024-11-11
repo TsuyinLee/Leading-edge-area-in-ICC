@@ -494,10 +494,10 @@ sce$celltype <- factor(sce$celltype,levels = c("B_cell","T/NK_cell","Myeloid_cel
 
 #to check cell compostion in each postion####
 Idents(sce) <- sce$celltype
-table(sce$type)#查看各组细胞数
+table(sce$type)
 prop.table(table(Idents(sce)))
-table(Idents(sce), sce$type)#各组不同细胞群细胞数
-Cellratio <- prop.table(table(Idents(sce), sce$type), margin = 2)#计算各组样本不同细胞群比例
+table(Idents(sce), sce$type)
+Cellratio <- prop.table(table(Idents(sce), sce$type), margin = 2)
 Cellratio <- as.data.frame(Cellratio)
 colnames(Cellratio)[1] <- "Cell_type"
 allcolour=c("#244552","#25706B","#28968B","#88AC79","#E1BF6A","#EB9D62","#DA6C4F","#1E90FF","#7CFC00","#FFFF00",
