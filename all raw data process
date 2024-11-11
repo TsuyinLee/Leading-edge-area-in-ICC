@@ -624,6 +624,18 @@ table(sce$celltypedb,sce$celltype)
 
 setwd("D:\\leadtest")
 #
+#sub_cluster_correlation####
+DefaultAssay(sce) <- "CCA"
+Idents(sce) <- "celltypedb"
+#去掉unknown
+sce <- subset(sce, cells = colnames(sce)[which(!sce$celltypedb %in% c('Unknown',"Macrophage","DC","Neutrophil","Monocyte"))])
+table(sce$celltypedb)
+av.exp<- AverageExpression(sce)$CCA
+# av.exp<- av.exp[which(row.names(av.exp)%in% features),]
+features=names(tail(sort(apply(av.exp, 1, sd)),length(rownames(sce))))
+av.exp<- av.exp[which(row.names(av.exp)%in% features),]
+av.exp <- cor(av.exp, method= "spearman")
+pheatmap::pheatmap(av.exp,color = colorRampPalette(c("navy", "white", "firebrick3"))(50))
 #cell_chat file preparation####
 setwd("D:\\leadtest\\cc")
 table(sce$type,sce$patient_id)
