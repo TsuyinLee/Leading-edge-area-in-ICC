@@ -345,7 +345,7 @@ genesets <- tt
 #
 Idents(t8sce) <- "type" 
 expr <- AverageExpression(t8sce, assays = "RNA", slot = "data")[[1]]
-expr <- expr[rowSums(expr)>0,]  #选取非零基因
+expr <- expr[rowSums(expr)>0,] 
 expr <- as.matrix(expr)
 head(expr)
 
